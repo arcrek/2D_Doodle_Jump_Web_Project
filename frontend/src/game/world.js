@@ -184,7 +184,7 @@ export function createPlatformTier(tierY, screenWidth = SCREEN_WIDTH) {
 }
 
 // Khởi tạo thế giới: 1 bệ chuẩn dưới chân nhân vật + sinh tầng bệ lên trên lấp đầy màn hình
-export function createWorld({ forIntro = false } = {}) {
+export function createWorld({ forIntro = false, soloStart = false } = {}) {
   // Bệ đầu tiên gần đáy màn hình, căn giữa dưới chân nhân vật
   // Nhân vật: x=300, width=34 → tâm = 317
   const startY = SCREEN_HEIGHT - 110;
@@ -203,7 +203,7 @@ export function createWorld({ forIntro = false } = {}) {
     { x: 797, y: startY, width: PLATFORM_WIDTH, height: PLATFORM_HEIGHT, type: PLATFORM_TYPES.STANDARD },
   ];
 
-  const platforms = [startPlatform, ...botPlatforms];
+  const platforms = forIntro || soloStart ? [startPlatform] : [startPlatform, ...botPlatforms];
 
   let routeX = startPlatform.x;
   // Sinh tầng bệ lên trên bắt đầu ngay từ bệ xuất phát (khoảng cách 55-85px chuẩn dev)

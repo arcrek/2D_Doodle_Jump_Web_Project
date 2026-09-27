@@ -23,7 +23,7 @@ export default function GamePage() {
   const backend = useBackend();
   const showLoopDemo = new URLSearchParams(window.location.search).get('demo') === 'loop';
 
-  // Trạng thái vòng đời 5 giai đoạn: intro_title -> intro_sliding -> warmup_hop -> running -> finished / paused
+  // Intro: title -> slide -> first platform -> profile -> player -> platforms -> input -> race.
   const [phase, setPhase] = useState(showLoopDemo ? 'running' : 'intro_title');
   const [stats, setStats] = useState(EMPTY_STATS);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -74,10 +74,7 @@ export default function GamePage() {
     }
     setStats(EMPTY_STATS);
     setElapsedMs(0);
-    setPhase('warmup_hop');
-    if (gameRef.current?.setPhase) {
-      gameRef.current.setPhase('warmup_hop');
-    }
+    gameRef.current?.beginPlayerEntrance?.();
   }, [backend.config]);
 
   // Quay về màn hình Tiêu đề Doodle trên cao
@@ -168,7 +165,7 @@ export default function GamePage() {
               />
             </div>
 
-            {phase === 'running' && <div className="touch-controls" aria-label="Điều khiển chạm">
+            {(phase === 'running' || phase === 'intro_wait_input') && <div className="touch-controls" aria-label="Điều khiển chạm">
               <button type="button" aria-label="Di chuyển sang trái"
                 onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); gameRef.current?.setDirection('left', true); }}
                 onPointerUp={() => gameRef.current?.setDirection('left', false)}
