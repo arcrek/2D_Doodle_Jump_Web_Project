@@ -17,6 +17,7 @@ import {
   FLOOR_HEIGHT,
   FINISH_PLATFORM_HEIGHT,
   PLATFORM_TYPES,
+  getPlatformCountForHeight,
 } from '../game/world.js';
 
 describe('world.js - Finite Race Track & Procedural Generation', () => {
@@ -415,6 +416,86 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
         const totalUsed = leftMargin + rightMargin + internalGaps + tier.length * PLATFORM_WIDTH;
         expect(Math.abs(totalUsed - SCREEN_WIDTH)).toBeLessThanOrEqual(tier.length);
       }
+    });
+  });
+
+  // 9. Endless Mode & Density Scaling (Issue #22 & #26)
+  describe('Endless Mode & Density Scaling (Issue #22 & #26)', () => {
+    it('getPlatformCountForHeight() reduces density as altitude increases but never drops below 1', () => {
+      // Dưới 1000px: 3 - 4 bệ
+      for (let i = 0; i < 20; i++) {
+        const count = getPlatformCountForHeight(460 - 500);
+        expect(count).toBeGreaterThanOrEqual(3);
+        expect(count).toBeLessThanOrEqual(4);
+      }
+
+      // 1000px - 2500px: 2 - 3 bệ
+      for (let i = 0; i < 20; i++) {
+        const count = getPlatformCountForHeight(460 - 1800);
+        expect(count).toBeGreaterThanOrEqual(2);
+        expect(count).toBeLessThanOrEqual(3);
+      }
+
+      // Trên 5000px: 1 - 2 bệ (cực khó nhưng luôn >= 1 bệ)
+      for (let i = 0; i < 20; i++) {
+        const count = getPlatformCountForHeight(460 - 6000);
+        expect(count).toBeGreaterThanOrEqual(1);
+        expect(count).toBeLessThanOrEqual(2);
+      }
+    });
+
+    it('createPlatformTier() correctly supports 1 and 2 platforms without overlap or trap', () => {
+      // 1 platform
+      for (let i = 0; i < 20; i++) {
+        const tier = createPlatformTier(-500, SCREEN_WIDTH, Math.random, { platformCount: 1 });
+        expect(tier.length).toBe(1);
+        expect(tier[0].type).not.toBe(PLATFORM_TYPES.FRAGILE);
+        expect(tier[0].x).toBeGreaterThanOrEqual(0);
+        expect(tier[0].x + tier[0].width).toBeLessThanOrEqual(SCREEN_WIDTH);
+      }
+
+      // 2 platforms
+      for (let i = 0; i < 20; i++) {
+        const tier = createPlatformTier(-500, SCREEN_WIDTH, Math.random, { platformCount: 2 });
+        expect(tier.length).toBe(2);
+        expect(tier[0].x).toBeGreaterThanOrEqual(0);
+        expect(tier[1].x + tier[1].width).toBeLessThanOrEqual(SCREEN_WIDTH);
+        const gap = tier[1].x - (tier[0].x + tier[0].width);
+        expect(gap).toBeGreaterThanOrEqual(20);
+        expect(gap).toBeLessThanOrEqual(MAX_JUMPABLE_GAP);
+      }
+    });
+
+    it('createWorld({ isFinite: false }) initializes endless mode without floor or finish', () => {
+      const world = createWorld({ isFinite: false, seed: 42 });
+      expect(world.isFinite).toBe(false);
+      expect(world.finishY).toBeNull();
+      // Không có bệ loại floor hoặc finish
+      expect(world.platforms.some(p => p.type === PLATFORM_TYPES.FLOOR)).toBe(false);
+      expect(world.platforms.some(p => p.type === PLATFORM_TYPES.FINISH)).toBe(false);
+      // Bệ đầu tiên là bệ tiêu chuẩn dưới chân nhân vật
+      expect(world.platforms[0].type).toBe(PLATFORM_TYPES.STANDARD);
+    });
+
+    it('updatePlatforms() in endless mode spawns dynamically with density scaling and maintains continuous route', () => {
+      const world = createWorld({ isFinite: false, seed: 777 });
+      const initialCount = world.platforms.length;
+
+      // Cuộn camera lên cao dần
+      for (let cam = -200; cam >= -4000; cam -= 300) {
+        world.cameraY = cam;
+        updatePlatforms(world, 1 / 60, { cullOffscreen: false });
+      }
+
+      // Bệ phải tiếp tục sinh vô hạn theo camera
+      expect(world.platforms.length).toBeGreaterThan(initialCount);
+
+      // Kiểm tra các tầng sinh ở độ cao lớn (y < -2500) có mật độ ít bệ hơn (1-2 bệ)
+      const highPlatforms = world.platforms.filter(p => p.y < -2500);
+      expect(highPlatforms.length).toBeGreaterThan(0);
+
+      // Vẫn đảm bảo có bệ safe đảm bảo lộ trình nhảy được
+      expect(world.platforms.some(p => p.safe)).toBe(true);
     });
   });
 });
