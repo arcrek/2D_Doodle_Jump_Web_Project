@@ -7,7 +7,6 @@ import {
   spawnIntroPlatforms,
   fillGameplayPlatforms,
   clearIntroTitleZone,
-  SCREEN_WIDTH,
   SCREEN_HEIGHT
 } from './world.js';
 import { render } from './render.js';
@@ -21,13 +20,31 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
 }
 
-const Y_INTRO = -750;
-const SLIDE_DURATION_MS = 1800;
-const SETTLE_DURATION_MS = 200;
-const LAUNCH_WARMUP_MS = 550;
+const Y_INTRO = -2400;
+const SLIDE_DURATION_MS = 6000;
+const START_PLATFORM_DURATION_MS = 500;
+const PLAYER_ENTRANCE_DURATION_MS = 900;
+const PLATFORM_REVEAL_DURATION_MS = 1800;
+const BOT_ENTRANCE_DURATION_MS = 900;
+const BOT_JOIN_TIMES_MS = [8000, 16000, 24000, 32000];
+const RESTART_WARMUP_MS = 550;
 const RETURN_DURATION_MS = 1000;
 const WIPE_DURATION_MS = 650;
 const WARMUP_HOP_VY = -340;
+const TITLE_WORLD_Y = Y_INTRO + 260;
+
+function shuffledRevealRanks(platforms) {
+  const indices = platforms.map((platform, index) => ({ platform, index }))
+    .filter(({ platform, index }) => index > 0 && platform.y > -40 && platform.y < SCREEN_HEIGHT + 40)
+    .map(({ index }) => index);
+  for (let index = indices.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [indices[index], indices[other]] = [indices[other], indices[index]];
+  }
+  const ranks = Array(platforms.length).fill(0);
+  indices.forEach((platformIndex, rank) => { ranks[platformIndex] = rank; });
+  return ranks;
+}
 
 export function createGame(canvas, config, {
   onFrame,
@@ -42,6 +59,7 @@ export function createGame(canvas, config, {
   const context = canvas.getContext('2d');
   preloadSprites();
   const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const touchMode = typeof window !== 'undefined' && window.matchMedia?.('(hover: none) and (pointer: coarse)').matches;
 
   // Determine starting phase
   let phase = initialPhase ?? (enableIntro ? 'intro_title' : 'running');
@@ -55,7 +73,7 @@ export function createGame(canvas, config, {
   if (enableIntro && phase === 'intro_sliding') world.cameraY = Y_INTRO;
 
   const player = createPlayer();
-  const bots = createStartingBots(388);
+  const bots = enableIntro ? [] : createStartingBots(388);
 
   const state = {
     player,
@@ -68,6 +86,12 @@ export function createGame(canvas, config, {
       isStartButtonHovered: false,
       wipeProgress: 0,
       platformReveal: 0,
+      revealRanks: [],
+      revealProgress: 0,
+      motionBlurPx: 0,
+      playerEntranceProgress: 0,
+      titleWorldY: TITLE_WORLD_Y,
+      touchMode,
     }
   };
 
@@ -86,6 +110,9 @@ export function createGame(canvas, config, {
   let wipeStartTime = null;
   let wipeResetTriggered = false;
   let settleStartTime = null;
+  let entranceStartTime = null;
+  let revealStartTime = null;
+  let nextBotIndex = 0;
   let warmupStartTime = null;
   let returnStartTime = null;
   let returnFromY = 0;
@@ -121,27 +148,63 @@ export function createGame(canvas, config, {
   function startSlideDown() {
     if (phase !== 'intro_title') return;
     state.world = createWorld({ forIntro: true });
+    fillGameplayPlatforms(state.world);
     state.world.cameraY = Y_INTRO;
     state.ui.platformReveal = 0;
+    state.ui.revealProgress = 0;
+    state.ui.revealRanks = shuffledRevealRanks(state.world.platforms);
+    state.ui.motionBlurPx = 0;
+    state.bots = [];
+    nextBotIndex = 0;
     setPhase('intro_sliding');
     slideStartTime = null;
     sound.playWhoosh(reduceMotion ? 0.1 : 1.8);
   }
 
   function startLaunch() {
-    if (phase !== 'warmup_hop') return;
-    fillGameplayPlatforms(state.world);
+    if (phase !== 'intro_wait_input' && phase !== 'warmup_hop') return;
     setPhase('running');
     elapsedMs = 0;
     lastStatsAt = -Infinity;
+    nextBotIndex = 0;
     sound.playLaunch();
 
     // Launch player and bots with full jump velocity
     state.player.vy = JUMP_VELOCITY;
-    state.bots.forEach(bot => {
-      bot.vy = JUMP_VELOCITY;
-      bot.reactionTimer = 0.05 + Math.random() * 0.1;
-    });
+  }
+
+  function beginPlayerEntrance() {
+    if (phase !== 'ready') return;
+    entranceStartTime = null;
+    state.ui.playerEntranceProgress = 0;
+    setPhase('intro_player');
+  }
+
+  function joinNextBot() {
+    const bot = createStartingBots(388)[nextBotIndex];
+    if (!bot) return;
+    const safePlatforms = state.world.platforms.filter(platform => !platform.broken && ['standard', 'bouncy'].includes(platform.type)
+      && platform.y - state.world.cameraY > 145 && platform.y - state.world.cameraY < canvas.height - 65);
+    let platform = safePlatforms.sort((a, b) => Math.abs(a.y - state.player.y) - Math.abs(b.y - state.player.y))[0];
+    if (!platform) {
+      platform = { x: nextBotIndex % 2 === 0 ? 80 : canvas.width - 200,
+        y: Math.max(state.world.cameraY + 160, Math.min(state.player.y + 65, state.world.cameraY + canvas.height - 80)),
+        width: 120, height: 14, type: 'standard' };
+      state.world.platforms.push(platform);
+    }
+    const fromLeft = nextBotIndex % 2 === 0;
+    bot.x = fromLeft ? -bot.width - 20 : canvas.width + 20;
+    bot.y = platform.y - bot.height;
+    bot.vy = 0;
+    bot.isEntering = true;
+    bot.entranceFromX = bot.x;
+    bot.entranceToX = platform.x + (platform.width - bot.width) / 2;
+    bot.entranceY = bot.y;
+    bot.entranceStartedAt = elapsedMs;
+    bot.progress = Math.max(0, Math.round(388 - bot.y));
+    bot.lastPlatformY = platform.y;
+    state.bots.push(bot);
+    nextBotIndex += 1;
   }
 
   function triggerRestartWipe() {
@@ -172,7 +235,7 @@ export function createGame(canvas, config, {
     const clickY = (e.clientY - rect.top) * scaleY;
 
     if (phase === 'intro_title') {
-      const titleWorldY = -490;
+      const titleWorldY = TITLE_WORLD_Y;
       const titleScreenY = titleWorldY - state.world.cameraY;
       const btnBounds = {
         x: canvas.width / 2 - 110,
@@ -199,7 +262,7 @@ export function createGame(canvas, config, {
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
 
-      const titleWorldY = -490;
+      const titleWorldY = TITLE_WORLD_Y;
       const titleScreenY = titleWorldY - state.world.cameraY;
       const btnBounds = {
         x: canvas.width / 2 - 110,
@@ -225,6 +288,9 @@ export function createGame(canvas, config, {
         e.preventDefault();
         startSlideDown();
       }
+    } else if (phase === 'intro_wait_input' && ['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) {
+      e.preventDefault();
+      startLaunch();
     }
   }
 
@@ -264,44 +330,49 @@ export function createGame(canvas, config, {
     }
 
     // =========================================================================
-    // STAGE 2: CAMERA SLIDE DOWN (1.5s easeInOutCubic)
+    // STAGE 2: CAMERA SLIDE DOWN
     // =========================================================================
     else if (phase === 'intro_sliding') {
       if (slideStartTime === null) slideStartTime = time;
       const elapsed = time - slideStartTime;
-      const progress = Math.min(Math.max(elapsed / (reduceMotion ? 100 : SLIDE_DURATION_MS), 0), 1);
+      const progress = Math.min(Math.max(elapsed / (reduceMotion ? 350 : SLIDE_DURATION_MS), 0), 1);
       const ease = easeInOutCubic(progress);
 
       state.world.cameraY = Y_INTRO + (0 - Y_INTRO) * ease;
-      state.ui.platformReveal = Math.min(1, progress / 0.18);
-      updatePlatforms(state.world, dt, { cullOffscreen: false });
-
-      // Player and bots do gentle idle bounce as camera descends
-      applyPhysics(state.player, dt);
-      if (state.player.vy >= 0 && state.player.y >= 388) {
-        state.player.y = 388;
-        state.player.vy = WARMUP_HOP_VY;
-      }
-      state.bots.forEach(bot => {
-        bot.y += (bot.vy || 0) * dt;
-        bot.vy = (bot.vy || 0) + 1200 * dt;
-        if (bot.vy >= 0 && bot.y >= 388) {
-          bot.y = 388;
-          bot.vy = WARMUP_HOP_VY;
-        }
-      });
+      state.ui.motionBlurPx = reduceMotion ? 0 : Math.min(9, (progress < 0.5 ? 12 * progress * progress : 12 * (1 - progress) * (1 - progress)) * 1.5);
 
       if (progress >= 1) {
         state.world.cameraY = 0;
-        fillGameplayPlatforms(state.world);
+        state.ui.motionBlurPx = 0;
         settleStartTime = time;
-        setPhase('intro_settle');
+        setPhase('intro_platform');
       }
     }
 
-    else if (phase === 'intro_settle') {
+    else if (phase === 'intro_platform') {
       state.world.cameraY = 0;
-      if (time - settleStartTime >= (reduceMotion ? 0 : SETTLE_DURATION_MS)) setPhase('ready');
+      state.ui.platformReveal = Math.min(1, (time - settleStartTime) / (reduceMotion ? 100 : START_PLATFORM_DURATION_MS));
+      if (state.ui.platformReveal >= 1) setPhase('ready');
+    }
+
+    else if (phase === 'intro_player') {
+      if (entranceStartTime === null) entranceStartTime = time;
+      state.ui.playerEntranceProgress = Math.min(1, (time - entranceStartTime) / (reduceMotion ? 150 : PLAYER_ENTRANCE_DURATION_MS));
+      if (state.ui.playerEntranceProgress >= 1) {
+        state.player.x = 300;
+        state.player.y = 388;
+        revealStartTime = time;
+        setPhase('intro_reveal');
+      }
+    }
+
+    else if (phase === 'intro_reveal') {
+      state.ui.revealProgress = Math.min(1, (time - revealStartTime) / (reduceMotion ? 150 : PLATFORM_REVEAL_DURATION_MS));
+      if (state.ui.revealProgress >= 1) setPhase('intro_wait_input');
+    }
+
+    else if (phase === 'intro_wait_input') {
+      state.world.cameraY = 0;
     }
 
     else if (phase === 'returning_title') {
@@ -313,11 +384,14 @@ export function createGame(canvas, config, {
         state.world.cameraY = Y_INTRO;
         state.world.platforms = [];
         state.ui.platformReveal = 0;
+        state.ui.revealProgress = 0;
+        state.ui.motionBlurPx = 0;
         state.player.x = 300;
         state.player.y = 388;
         state.player.vx = 0;
         state.player.vy = 0;
-        state.bots = createStartingBots(388);
+        state.bots = [];
+        nextBotIndex = 0;
         maxHeight = 0;
         elapsedMs = 0;
         isGameOver = false;
@@ -326,11 +400,14 @@ export function createGame(canvas, config, {
     }
 
     // =========================================================================
-    // STAGE 3A: READY (StartMenu open on ground, gentle hops behind modal)
-    // STAGE 3B: WARMUP HOP IN PLACE (Gentle hops with arrow guide)
+    // Profile selection stays still; restart keeps the short warmup hop.
     // =========================================================================
-    else if (phase === 'ready' || phase === 'warmup_hop') {
-      if (phase === 'warmup_hop' && warmupStartTime === null) warmupStartTime = time;
+    else if (phase === 'ready') {
+      state.world.cameraY = 0;
+    }
+
+    else if (phase === 'warmup_hop') {
+      if (warmupStartTime === null) warmupStartTime = time;
       state.world.cameraY = 0;
 
       // Player gentle hop
@@ -354,7 +431,7 @@ export function createGame(canvas, config, {
         }
       });
 
-      if (phase === 'warmup_hop' && time - warmupStartTime >= (reduceMotion ? 100 : LAUNCH_WARMUP_MS)) startLaunch();
+      if (time - warmupStartTime >= (reduceMotion ? 100 : RESTART_WARMUP_MS)) startLaunch();
     }
 
     // =========================================================================
@@ -362,6 +439,7 @@ export function createGame(canvas, config, {
     // =========================================================================
     else if (phase === 'running') {
       elapsedMs += rawDt * 1000;
+      while (nextBotIndex < BOT_JOIN_TIMES_MS.length && elapsedMs >= BOT_JOIN_TIMES_MS[nextBotIndex]) joinNextBot();
       const direction = Number(input.state.right) - Number(input.state.left);
       updateHorizontal(state.player, direction, dt);
       handleScreenWrap(state.player, canvas.width);
@@ -372,6 +450,17 @@ export function createGame(canvas, config, {
       // Update Bots AI and physics
       state.bots.forEach(bot => {
         if (bot.isDead) return;
+        if (bot.isEntering) {
+          const progress = Math.min(1, (elapsedMs - bot.entranceStartedAt) / BOT_ENTRANCE_DURATION_MS);
+          bot.x = bot.entranceFromX + (bot.entranceToX - bot.entranceFromX) * easeInOutCubic(progress);
+          bot.y = bot.entranceY - Math.sin(Math.PI * progress) * 75;
+          if (progress >= 1) {
+            bot.isEntering = false;
+            bot.y = bot.entranceY;
+            bot.vy = JUMP_VELOCITY;
+          }
+          return;
+        }
         updateBotAI(bot, state.world.platforms, dt, state.bots, state.world.cameraY);
         // Bot gravity & collision
         bot.y += bot.vy * dt;
@@ -429,12 +518,13 @@ export function createGame(canvas, config, {
       if (progress >= 0.5 && !wipeResetTriggered) {
         wipeResetTriggered = true;
         state.world.cameraY = 0;
-        state.world = createWorld();
+        state.world = createWorld({ soloStart: true });
         state.player.x = 300;
         state.player.y = 388;
         state.player.vx = 0;
         state.player.vy = WARMUP_HOP_VY;
-        state.bots = createStartingBots(388);
+        state.bots = [];
+        nextBotIndex = 0;
         maxHeight = 0;
         elapsedMs = 0;
         warmupStartTime = null;
@@ -477,8 +567,10 @@ export function createGame(canvas, config, {
       if (input?.state) {
         input.state[dir] = active;
       }
+      if (active && phase === 'intro_wait_input') startLaunch();
     },
     startFromTitle: startSlideDown,
+    beginPlayerEntrance,
     startLaunch,
     triggerRestartWipe,
     returnToTitleMenu,
