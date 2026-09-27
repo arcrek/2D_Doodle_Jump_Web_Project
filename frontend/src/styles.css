@@ -65,6 +65,25 @@ main {
 /* ==========================================================================
    Top Bar (Thanh điều hướng tối trên cùng kiểu dark pill)
    ========================================================================== */
+.topbar-wrapper {
+  position: relative;
+  z-index: 20;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.topbar-wrapper.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+}
+
+.topbar-wrapper.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .game-top-bar {
   display: flex;
   justify-content: space-between;
@@ -162,6 +181,18 @@ main {
   background: #31442d;
 }
 
+.btn-top-menu {
+  background: #182820;
+  color: #94a3b8;
+  border-color: #263e32;
+}
+
+.btn-top-menu:hover {
+  background: #20352a;
+  color: #ffffff;
+  border-color: #385646;
+}
+
 /* ==========================================================================
    Canvas Wrapper & Game Stage (Full viewport 16:9)
    ========================================================================== */
@@ -187,7 +218,11 @@ main {
   max-width: calc((100dvh - 66px) * 16 / 9);
   max-height: calc((100vw - 16px) * 9 / 16);
   aspect-ratio: 16 / 9;
-  background: #f4f8f3 url('/images/game-background.png') center / cover no-repeat;
+  background: #f4f8f3;
+  background-image:
+    linear-gradient(to right, rgba(0, 70, 30, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 70, 30, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
   border: 1px solid #1a382b;
   border-radius: 12px;
   overflow: hidden;
@@ -203,6 +238,27 @@ canvas {
 /* ==========================================================================
    Floating HUD Cards (Thẻ nổi Kỷ lục & ĐUA TOP lơ lửng trên Canvas)
    ========================================================================== */
+.hud-floating-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.hud-floating-container.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+}
+
+.hud-floating-container.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .floating-hud-score {
   position: absolute;
   top: 14px;
@@ -402,45 +458,6 @@ canvas {
 .form-input:focus, .form-select:focus {
   outline: none;
   border-color: var(--primary);
-}
-
-.skin-choice-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.skin-choice {
-  min-width: 0;
-  padding: 4px;
-  border: 2px solid #ded5c7;
-  background: #fff;
-  color: var(--text-main);
-  border-radius: 8px;
-}
-
-.skin-choice img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: contain;
-  border-radius: 5px;
-  background: #f5f1e8;
-}
-
-.skin-choice span {
-  display: block;
-  padding: 3px 1px 1px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-}
-
-.skin-choice.selected {
-  border-color: var(--primary);
-  background: #e9f4ed;
-  box-shadow: 0 0 0 2px rgb(67 118 92 / 15%);
 }
 
 .input-error {
@@ -689,39 +706,156 @@ button:focus-visible {
   font-size: 12px;
 }
 
-.modal-alert p { margin: 0 0 8px; }
-
-.touch-controls {
-  position: absolute;
-  z-index: 12;
-  left: 50%;
-  bottom: 16px;
-  display: none;
-  transform: translateX(-50%);
-  gap: 18px;
-}
-
-.touch-controls button {
-  width: 64px;
-  height: 52px;
-  padding: 0;
-  border: 1px solid rgb(255 255 255 / 70%);
-  border-radius: 14px;
-  background: rgb(13 32 25 / 78%);
-  color: #fff;
-  font-size: 26px;
-  touch-action: none;
-  user-select: none;
-}
-
-@media (pointer: coarse), (max-width: 720px) {
-  .touch-controls { display: flex; }
-  .floating-hud-ranking { width: 168px; }
-  .skin-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .menu-card { max-height: 94dvh; overflow-y: auto; }
-}
-
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* Full viewport stage: the playfield keeps its 16:9 geometry without a frame. */
+body, main, .game-layout-container, .canvas-wrapper {
+  background: #fff9f1 url('/images/game-background.png') center / cover fixed;
+}
+
+.game-layout-container {
+  width: 100vw;
+  height: 100dvh;
+}
+
+.canvas-wrapper {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.game-stage {
+  width: min(100vw, 177.7778dvh);
+  height: min(100dvh, 56.25vw);
+  max-width: none;
+  max-height: none;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fffaf3 url('/images/game-background.png') center / cover fixed;
+}
+
+.topbar-wrapper {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 15;
+}
+
+.game-top-bar {
+  height: 46px;
+  min-height: 46px;
+  background: rgb(255 252 245 / 92%);
+  border-bottom: 1px solid #bcd1bc;
+  backdrop-filter: blur(8px);
+}
+
+.top-bar-pill {
+  color: #214b38;
+  background: #fffdf6;
+  border-color: #c9d7c8;
+}
+
+.pill-brand, .pill-timer { color: #24543b; }
+.pill-hint { color: #50665a; background: transparent; border: 0; }
+.pill-hint kbd { color: #24543b; background: #fff; border-color: #adc7b1; }
+.btn-top-restart, .btn-top-pause, .btn-top-menu {
+  color: #24543b;
+  background: #f8f0db;
+  border-color: #c7d4b6;
+}
+
+.floating-hud-score, .floating-hud-ranking {
+  top: 58px;
+  background: rgb(255 253 247 / 94%);
+  border: 2px solid #426c56;
+  border-radius: 14px;
+  box-shadow: 3px 4px 0 rgb(44 80 58 / 12%);
+}
+
+.menu-overlay, .modal-backdrop {
+  background: rgb(27 57 41 / 35%);
+  backdrop-filter: blur(4px);
+}
+
+.menu-card, .modal-card {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  background: #fffcf3;
+  border: 2px solid #315d43;
+  border-radius: 18px;
+  box-shadow: 7px 8px 0 rgb(20 58 37 / 22%);
+}
+
+.menu-card { padding: 20px 26px; }
+.menu-header { margin-bottom: 12px; }
+.menu-game-title { font-family: 'Trebuchet MS', Arial, sans-serif; letter-spacing: .07em; }
+.menu-controls-info { margin: 10px 0; }
+.menu-button-group { margin-top: 12px; }
+
+.skin-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 72px;
+  padding: 6px 12px;
+  margin-top: -5px;
+  color: #315d43;
+  font-weight: 800;
+  background: #f8f2df;
+  border: 1px dashed #a7baa5;
+  border-radius: 10px;
+}
+
+.skin-preview img { width: 58px; height: 58px; object-fit: contain; }
+.save-status { margin: 0 0 14px; font-size: 13px; font-weight: 700; }
+.save-saved { color: #245d42; }
+.save-error { color: #a02b2b; }
+
+.touch-controls { display: none; }
+
+@media (hover: none) and (pointer: coarse) {
+  .touch-controls {
+    position: absolute;
+    inset: auto 16px 14px;
+    z-index: 18;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .touch-controls button {
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    color: #24543b;
+    font-size: 28px;
+    background: rgb(255 253 245 / 88%);
+    border: 2px solid #315d43;
+    border-radius: 18px;
+    box-shadow: 3px 4px 0 rgb(20 58 37 / 18%);
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+  }
+}
+
+@media (max-aspect-ratio: 4/3) {
+  .menu-overlay, .modal-backdrop { position: fixed; z-index: 30; overflow-y: auto; }
+  .menu-card, .modal-card { max-height: 90dvh; }
+  .pill-hint { display: none; }
+  .game-top-bar { padding: 0 5px; gap: 3px; }
+  .top-bar-pill, .btn-top-bar { font-size: 10px; padding: 4px; }
+  .floating-hud-score, .floating-hud-ranking { transform: scale(.72); transform-origin: top left; }
+  .floating-hud-ranking { transform-origin: top right; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-wrapper, .hud-floating-container, button, .menu-overlay, .modal-backdrop {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
 }

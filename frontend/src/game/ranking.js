@@ -16,8 +16,6 @@ export function getRanking(player, bots = []) {
       name: player?.name || 'Bạn',
       progress: playerProgress,
       isDead: Boolean(player?.isDead),
-      finishedAt: player?.finishedAt ?? null,
-      sprite_id: player?.sprite_id,
     },
   ];
 
@@ -30,17 +28,11 @@ export function getRanking(player, bots = []) {
         name: bot?.profile?.name || bot?.name || `Bot ${i + 1}`,
         progress: botProgress,
         isDead: Boolean(bot?.isDead),
-        finishedAt: bot?.finishedAt ?? null,
-        sprite_id: bot?.sprite_id,
       });
     }
   }
 
   return participants.sort((a, b) => {
-    const aFinished = a.finishedAt !== null;
-    const bFinished = b.finishedAt !== null;
-    if (aFinished !== bFinished) return aFinished ? -1 : 1;
-    if (aFinished && a.finishedAt !== b.finishedAt) return a.finishedAt - b.finishedAt;
     if (b.progress !== a.progress) {
       return b.progress - a.progress;
     }

@@ -72,9 +72,9 @@ def post_runs():
     else:
         clean["nickname"] = nickname.strip()
 
-    if not isinstance(clean["skin_id"], str) or clean["skin_id"] not in [
-        skin["id"] for skin in RULES["skins"]
-    ]:
+    # Existing v1 runs can still be retried after the new player skins ship.
+    valid_skins = {skin["id"] for skin in RULES["skins"]} | {"nam", "quang", "son", "viet"}
+    if not isinstance(clean["skin_id"], str) or clean["skin_id"] not in valid_skins:
         errors["skin_id"] = "Nhân vật không tồn tại."
     if clean["rules_version"] != RULES["rules_version"]:
         errors["rules_version"] = "Phiên bản luật không được hỗ trợ."

@@ -9,8 +9,8 @@ import {
   BOT_HEIGHT,
   BOT_ACCEL,
   BOT_PROFILES,
+  JUMP_VELOCITY,
 } from './index.js';
-import { JUMP_VELOCITY } from './physics.js';
 
 export { BOT_PROFILES };
 
@@ -18,8 +18,18 @@ const PROFILE_MAP = {
   son: 'NOVICE',
   viet: 'STANDARD',
   quang: 'SPEEDRUNNER',
+  hiep: 'SPEEDRUNNER',
   nam: 'PERFECT',
 };
+
+export function createStartingBots(startY = 388) {
+  return createRaceBots([
+    { id: 'teacher-son', name: 'Thầy Sơn', sprite_id: 'son' },
+    { id: 'teacher-viet', name: 'Thầy Việt', sprite_id: 'viet' },
+    { id: 'teacher-hiep', name: 'Thầy Hiệp', sprite_id: 'hiep' },
+    { id: 'teacher-nam', name: 'Thầy Nam', sprite_id: 'nam' },
+  ]).map((bot) => ({ ...bot, y: startY, prevY: startY, vy: 0 }));
+}
 
 /**
  * BOT-01: Tạo danh sách bot từ cấu hình profiles nhận vào.

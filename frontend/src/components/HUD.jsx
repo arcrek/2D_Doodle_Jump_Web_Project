@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getJson } from '../services/api.js';
 
 // 0. COMPONENT TOP BAR (Thanh điều hướng tối trên cùng: Logo, Timer, Hint, Nút Chơi lại)
-export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestart }) {
+export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestart, onExitToMenu }) {
   const seconds = (Math.max(0, elapsedMs) / 1000).toFixed(1);
   return (
     <header className="game-top-bar" aria-label="Thanh điều hướng trò chơi">
@@ -44,6 +44,17 @@ export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestar
             🔄 Chơi lại
           </button>
         )}
+        {onExitToMenu && (
+          <button
+            type="button"
+            className="btn-top-bar btn-top-menu"
+            onClick={onExitToMenu}
+            title="Quay về màn hình chính"
+            aria-label="Quay về màn hình chính"
+          >
+            🏠 Menu
+          </button>
+        )}
       </div>
     </header>
   );
@@ -54,9 +65,7 @@ export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạ
   const displayCurrent = Math.max(0, Math.round(currentHeight));
   const displayMax = Math.max(displayCurrent, Math.round(maxHeight));
 
-  const racers = ranking.length ? ranking : [
-    { id: 'player', name: nickname || 'Bạn', progress: displayCurrent },
-  ];
+  const displayRanking = ranking.length ? ranking : [{ id: 'player', name: nickname || 'Bạn', progress: displayCurrent }];
 
   return (
     <>
@@ -76,18 +85,18 @@ export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạ
       <div className="floating-hud-ranking" aria-label="Bảng đua top">
         <div className="floating-ranking-header">
           <span>🏁</span>
-          <span>ĐUA TOP (Còn {racers.filter((item) => item.id !== 'player' && !item.isDead).length} bot)</span>
+          <span>ĐUA TOP</span>
         </div>
         <div className="floating-ranking-list">
-          {racers.map((item, idx) => (
+          {displayRanking.map((item, idx) => (
             <div
               key={item.id}
               className={`floating-ranking-item ${item.id === 'player' ? 'is-player' : ''}`}
             >
               <span className="ranking-name">
-                #{idx + 1} {item.id === 'player' ? (nickname || 'Bạn') : item.name}
+                #{idx + 1} {item.name}
               </span>
-              <span className="ranking-score">{item.finished ? 'Đích' : item.isDead ? 'Rơi vực' : `${item.progress}m`}</span>
+              <span className="ranking-score">{Math.round(item.progress)}m</span>
             </div>
           ))}
         </div>
@@ -201,7 +210,15 @@ export function StartMenu({
   const [skinId, setSkinId] = useState(initialSkin);
   const [error, setError] = useState('');
 
-  const skins = config?.skins || [{ id: 'doodle', name: 'Doodle mặc định' }];
+  const DEFAULT_SKINS = [
+    { id: 'doodle', name: 'Vàng cổ điển', sprite: '/images/skins/doodle.svg' },
+    { id: 'red', name: 'Đỏ rực', sprite: '/images/skins/red.svg' },
+    { id: 'purple', name: 'Tím mộng mơ', sprite: '/images/skins/purple.svg' },
+    { id: 'blue', name: 'Xanh bầu trời', sprite: '/images/skins/blue.svg' },
+    { id: 'gray', name: 'Xám tinh nghịch', sprite: '/images/skins/gray.svg' },
+  ];
+  const skins = config?.skins?.length ? config.skins : DEFAULT_SKINS;
+  const selectedSkin = skins.find(skin => skin.id === skinId) || skins[0];
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -259,14 +276,22 @@ export function StartMenu({
             <label htmlFor="player-skin" className="form-label">
               Trang phục (Skin)
             </label>
-            <div id="player-skin" className="skin-choice-grid" role="radiogroup" aria-label="Trang phục">
-              {skins.map((skin) => <button key={skin.id} type="button"
-                className={skinId === skin.id ? 'skin-choice selected' : 'skin-choice'}
-                role="radio" aria-checked={skinId === skin.id} onClick={() => setSkinId(skin.id)}>
-                <img src={skin.sprite || `/images/sprites/${skin.id}.png`} alt="" />
-                <span>{skin.name}</span>
-              </button>)}
-            </div>
+            <select
+              id="player-skin"
+              className="form-select"
+              value={skinId}
+              onChange={(e) => setSkinId(e.target.value)}
+            >
+              {skins.map((skin) => (
+                <option key={skin.id} value={skin.id}>
+                  {skin.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="skin-preview" aria-live="polite">
+            <img src={selectedSkin.sprite || `/images/skins/${selectedSkin.id}.svg`} alt="" />
+            <span>{selectedSkin.name}</span>
           </div>
 
           {/* Hướng dẫn phím */}
@@ -289,9 +314,7 @@ export function StartMenu({
             >
               🏆 Bảng xếp hạng
             </button>
-            <button type="button" className="btn-outline" onClick={onOpenHistory}>
-              📖 Lịch sử của tôi
-            </button>
+            {onOpenHistory && <button type="button" className="btn-outline" onClick={onOpenHistory}>📖 Lịch sử của tôi</button>}
           </div>
         </form>
       </div>
@@ -306,7 +329,9 @@ export function GameOverModal({
   elapsedMs = 0,
   placement = 1,
   nickname = '',
-  save = { status: '', message: '' },
+  outcome,
+  reason,
+  save,
   onResume,
   onRestart,
   onExitToMenu,
@@ -330,7 +355,8 @@ export function GameOverModal({
           </>
         ) : (
           <>
-            <h2 className="modal-title">💀 Kết Thúc Lượt Chơi!</h2>
+            <h2 className="modal-title">{outcome === 'finished' ? '🏁 Về đích!' : 'Kết thúc lượt chơi'}</h2>
+            <p className="modal-subtitle">{reason === 'timeout' ? 'Đã hết thời gian.' : reason === 'fall' ? 'Bạn đã rơi khỏi màn chơi.' : 'Chúc mừng bạn đã chạm đích!'}</p>
             <div className="stats-summary">
               <div className="stat-box highlight">
                 <span className="stat-label">Độ cao</span>
@@ -345,8 +371,8 @@ export function GameOverModal({
                 <span className="stat-num">Top {placement}/5</span>
               </div>
             </div>
+            {save?.message && <p className={`save-status save-${save.status}`} role="status">{save.message}</p>}
             <div className="modal-actions-column">
-              {save.message && <p role="status" className={save.status === 'error' ? 'modal-alert' : 'modal-status'}>{save.message}</p>}
               <button type="button" className="btn-primary" onClick={onRestart}>🔄 Chơi lại</button>
               <button type="button" className="btn-secondary" onClick={onExitToMenu}>🏠 Về Menu</button>
             </div>
@@ -358,13 +384,14 @@ export function GameOverModal({
 }
 
 // 5. COMPONENT LEADERBOARD MODAL (Popup Bảng Xếp Hạng Top 10)
-export function LeaderboardModal({ onClose, rulesVersion = 'v1', mode = 'leaderboard', playerId = '' }) {
+export function LeaderboardModal({ onClose, rulesVersion = 'v1', offline = false, mode = 'leaderboard', playerId = '' }) {
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(!offline);
+  const [error, setError] = useState(offline ? 'Không tải được dữ liệu khi đang ngoại tuyến.' : '');
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (offline) return;
     const path = mode === 'history'
       ? `/api/runs?player_id=${encodeURIComponent(playerId)}`
       : `/api/leaderboard?rules_version=${encodeURIComponent(rulesVersion)}`;
@@ -374,8 +401,8 @@ export function LeaderboardModal({ onClose, rulesVersion = 'v1', mode = 'leaderb
         setLoading(false);
         setError('');
       })
-      .catch((requestError) => { setLoading(false); setError(requestError.message); });
-  }, [rulesVersion, mode, playerId, attempt]);
+      .catch(() => { setError('Không tải được dữ liệu. Hãy thử lại khi backend hoạt động.'); setLoading(false); });
+  }, [rulesVersion, offline, mode, playerId, attempt]);
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -384,7 +411,7 @@ export function LeaderboardModal({ onClose, rulesVersion = 'v1', mode = 'leaderb
         {loading ? (
           <p className="modal-status">Đang tải...</p>
         ) : error ? (
-          <div className="modal-alert" role="alert"><p>{error}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>Thử lại</button></div>
+          <div className="modal-alert" role="alert"><p>{error}</p>{!offline && <button type="button" onClick={() => setAttempt(value => value + 1)}>Thử lại</button>}</div>
         ) : items.length === 0 ? (
           <p className="modal-empty">Chưa có lượt chơi nào.</p>
         ) : (

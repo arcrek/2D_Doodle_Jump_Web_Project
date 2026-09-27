@@ -183,58 +183,98 @@ export function createPlatformTier(tierY, screenWidth = SCREEN_WIDTH) {
   return platforms;
 }
 
-// Khởi tạo thế giới: 1 bệ chuẩn dưới chân nhân vật + bệ xuất phát cho các làn bot + sinh tầng bệ lên trên
-export function createWorld() {
+// Khởi tạo thế giới: 1 bệ chuẩn dưới chân nhân vật + sinh tầng bệ lên trên lấp đầy màn hình
+export function createWorld({ forIntro = false } = {}) {
+  // Bệ đầu tiên gần đáy màn hình, căn giữa dưới chân nhân vật
+  // Nhân vật: x=300, width=34 → tâm = 317
   const startY = SCREEN_HEIGHT - 110;
   const playerCenterX = 300 + 17; // tâm nhân vật (x + width/2)
   const startPlatform = {
-    x: Math.round(playerCenterX - PLATFORM_WIDTH / 2),
-    y: startY,
-    width: PLATFORM_WIDTH,
-    height: PLATFORM_HEIGHT,
+    x: Math.round(playerCenterX - PLATFORM_WIDTH / 2), y: startY,
+    width: PLATFORM_WIDTH, height: PLATFORM_HEIGHT,
     type: PLATFORM_TYPES.STANDARD,
-    safe: true,
   };
 
-  const platforms = [startPlatform];
+  // 4 bệ xuất phát riêng biệt cho 4 Bot đối thủ (rải đều trên màn hình 960px)
+  const botPlatforms = [
+    { x: 47, y: startY, width: PLATFORM_WIDTH, height: PLATFORM_HEIGHT, type: PLATFORM_TYPES.STANDARD },
+    { x: 447, y: startY, width: PLATFORM_WIDTH, height: PLATFORM_HEIGHT, type: PLATFORM_TYPES.STANDARD },
+    { x: 637, y: startY, width: PLATFORM_WIDTH, height: PLATFORM_HEIGHT, type: PLATFORM_TYPES.STANDARD },
+    { x: 797, y: startY, width: PLATFORM_WIDTH, height: PLATFORM_HEIGHT, type: PLATFORM_TYPES.STANDARD },
+  ];
 
-  // Bổ sung bệ xuất phát tại vạch xuất phát cho các làn bot (đảm bảo bot nảy ngay khi bắt đầu)
-  const botLanes = [96, 326, 556, 786];
-  for (const lane of botLanes) {
-    const platX = Math.max(10, Math.min(SCREEN_WIDTH - PLATFORM_WIDTH - 10, Math.round(lane - PLATFORM_WIDTH / 2 + 22)));
-    if (!platforms.some(p => Math.abs(p.x - platX) < 70)) {
-      platforms.push({
-        x: platX,
-        y: startY,
-        width: PLATFORM_WIDTH,
-        height: PLATFORM_HEIGHT,
-        type: PLATFORM_TYPES.STANDARD,
-        safe: true,
-      });
-    }
-  }
+  const platforms = [startPlatform, ...botPlatforms];
 
   let routeX = startPlatform.x;
-
-  // Sinh tầng bệ lên trên cho đến khi phủ hết màn hình (y ≈ 0 hoặc thấp hơn)
+  // Sinh tầng bệ lên trên bắt đầu ngay từ bệ xuất phát (khoảng cách 55-85px chuẩn dev)
   let highestY = startPlatform.y;
-  while (highestY > -50) {
+  const targetCeiling = forIntro ? -1400 : -50;
+  while (highestY > targetCeiling) {
     const deltaY = MIN_GAP_Y + Math.random() * (MAX_GAP_Y - MIN_GAP_Y);
     const tierY = highestY - deltaY;
-    const tierPlatforms = createPlatformTier(tierY);
-    routeX = ensureRoute(tierPlatforms, routeX, tierY);
-    for (const p of tierPlatforms) {
-      platforms.push(p);
+    // Khi forIntro: Giữ khu vực Tiêu đề và nút BẮT ĐẦU (-650 đến -220) hoàn toàn thoáng đãng
+    if (!forIntro || tierY < -650 || tierY > -220) {
+      const tierPlatforms = createPlatformTier(tierY);
+      routeX = ensureRoute(tierPlatforms, routeX, tierY);
+      for (const p of tierPlatforms) {
+        platforms.push(p);
+      }
     }
-    highestY = Math.min(...tierPlatforms.map(p => p.y));
+    highestY = tierY;
   }
 
   return { platforms, cameraY: 0, routeX };
 }
 
+// Sinh bệ bổ sung lấp đầy không gian bầu trời phục vụ camera trượt từ trên cao xuống
+export function spawnIntroPlatforms(world, targetCeiling = -1400) {
+  let highestY = Math.min(...world.platforms.map(p => p.y));
+  while (highestY > targetCeiling) {
+    const deltaY = MIN_GAP_Y + Math.random() * (MAX_GAP_Y - MIN_GAP_Y);
+    const tierY = highestY - deltaY;
+    if (tierY < -650 || tierY > -220) {
+      const tierPlatforms = createPlatformTier(tierY);
+      for (const p of tierPlatforms) {
+        world.platforms.push(p);
+      }
+    }
+    highestY = tierY;
+  }
+}
+
+// Lấp đầy các tầng bệ vào khu vực bầu trời (-650 đến -220) khi vào game để người chơi leo tháp liên tục không bị hẫng
+export function fillGameplayPlatforms(world) {
+  const hasGapInSky = !world.platforms.some(p => p.y >= -600 && p.y <= -260);
+  if (hasGapInSky) {
+    let tierY = -220;
+    while (tierY > -650) {
+      const deltaY = MIN_GAP_Y + Math.random() * (MAX_GAP_Y - MIN_GAP_Y);
+      tierY -= deltaY;
+      if (tierY > -650) {
+        const tierPlatforms = createPlatformTier(tierY);
+        for (const p of tierPlatforms) {
+          world.platforms.push(p);
+        }
+      }
+    }
+  }
+}
+
+// Dọn sạch bệ trong khu vực tiêu đề (-650 đến -220) khi quay lại màn hình mở đầu
+export function clearIntroTitleZone(world) {
+  world.platforms = world.platforms.filter(p => p.y < -650 || p.y > -220);
+}
+
 // Cập nhật bệ theo cameraY và thời gian dt
-export function updatePlatforms(world, dt = 1 / 60, highestEntityY = null) {
+export function updatePlatforms(world, dt = 1 / 60, options = {}) {
   if (!world.platforms || world.platforms.length === 0) return;
+
+  const cullOffscreen = typeof options === 'object' && options !== null && 'cullOffscreen' in options
+    ? options.cullOffscreen
+    : true;
+  const highestEntityY = typeof options === 'number'
+    ? options
+    : (options?.highestEntityY ?? null);
 
   // 1. Cập nhật vị trí các bệ di động (moving)
   if (dt > 0) {
@@ -287,7 +327,9 @@ export function updatePlatforms(world, dt = 1 / 60, highestEntityY = null) {
   }
 
   // 4. Dọn rác: Bỏ các bệ đã trôi khỏi mép dưới màn hình (> 550px so với camera)
-  world.platforms = world.platforms.filter(p => p.y - world.cameraY < 550);
+  if (cullOffscreen) {
+    world.platforms = world.platforms.filter(p => p.y - world.cameraY < 550);
+  }
 }
 
 export function ensureRoute(tier, previousX, y) {

@@ -11,8 +11,8 @@ const config = {
   max_duration_ms: 180000,
   rules_version: 'v1',
   skins: [
-    { id: 'nam', name: 'Thầy Nam', sprite: '/images/sprites/nam.png' },
-    { id: 'quang', name: 'Thầy Quang', sprite: '/images/sprites/quang.png' },
+    { id: 'doodle', name: 'Vàng cổ điển', sprite: '/images/skins/doodle.svg' },
+    { id: 'purple', name: 'Tím mộng mơ', sprite: '/images/skins/purple.svg' },
   ],
   bots: [
     { id: 'son', name: 'Thầy Sơn', base_speed: 41, sprite_id: 'son' },
@@ -44,12 +44,12 @@ it('creates a persistent result with placement when a run ends', () => {
   expect(state.result.placement).toBeLessThanOrEqual(3);
 });
 
-it('uses the selected portrait skin when starting from the menu', () => {
+it('uses the selected doodle skin when starting from the menu', () => {
   const onStartGame = vi.fn();
   render(<StartMenu config={config} onStartGame={onStartGame}
     onOpenLeaderboard={() => {}} onOpenHistory={() => {}} />);
   fireEvent.change(screen.getByLabelText(/Tên người chơi/), { target: { value: 'Vinh' } });
-  fireEvent.click(screen.getByRole('radio', { name: 'Thầy Quang' }));
+  fireEvent.change(screen.getByLabelText(/Trang phục/), { target: { value: 'purple' } });
   fireEvent.click(screen.getByRole('button', { name: /BẮT ĐẦU CHƠI/ }));
-  expect(onStartGame).toHaveBeenCalledWith({ nickname: 'Vinh', skinId: 'quang' });
+  expect(onStartGame).toHaveBeenCalledWith({ nickname: 'Vinh', skinId: 'purple' });
 });
