@@ -7,7 +7,8 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const python = resolve(root, process.platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python');
 const vite = resolve(root, 'frontend/node_modules/vite/bin/vite.js');
 if (!existsSync(python) || !existsSync(vite)) {
-  console.error('Chưa cài môi trường. Chạy npm.cmd run setup trước.');
+  const setupCmd = process.platform === 'win32' ? 'npm.cmd run setup' : 'npm run setup';
+  console.error(`Chưa cài môi trường. Chạy ${setupCmd} trước.`);
   process.exit(1);
 }
 const children = [];
