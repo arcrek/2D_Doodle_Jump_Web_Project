@@ -18,3 +18,20 @@ RULES = {
         {"id": "teacher-nam", "name": "Thầy Nam", "base_speed": 48, "sprite_id": "nam", "sprite": "/images/bots/nam.png"},
     ],
 }
+
+RULES_V1 = RULES
+
+RULES_V2 = {
+    "rules_version": "v2",
+    "finish_height": 3000,
+    "max_duration_ms": 180000,
+    "min_finish_duration_ms": 7500,
+    "max_players": 4,
+    "skins": RULES["skins"],
+    "bots": RULES["bots"],
+}
+
+ALL_RULES = {
+    "v1": RULES_V1,
+    "v2": RULES_V2,
+}

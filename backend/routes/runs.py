@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request
 
 from ..db import get_db
 from ..errors import APIError
-from ..rules import RULES
+from ..rules import RULES, ALL_RULES
 
 runs_api = Blueprint("runs", __name__)
 
@@ -33,18 +33,24 @@ def get_runs():
             status_code=422,
         )
 
-    db = get_db()
-    cursor = db.execute(
-        """
+    rules_version = request.args.get("rules_version")
+    if rules_version and rules_version not in ALL_RULES:
+        raise APIError("invalid_rules", "Phiên bản luật không hợp lệ.", status_code=422)
+
+    query = """
         SELECT run_id, player_id, nickname, skin_id, rules_version,
                height, elapsed_ms, outcome, placement, created_at
         FROM runs
         WHERE player_id = ?
-        ORDER BY created_at DESC, run_id ASC
-        LIMIT 20
-        """,
-        (canonical_player_id,),
-    )
+    """
+    params = [canonical_player_id]
+    if rules_version:
+        query += " AND rules_version = ?"
+        params.append(rules_version)
+    query += " ORDER BY created_at DESC, run_id ASC LIMIT 20"
+
+    db = get_db()
+    cursor = db.execute(query, tuple(params))
     rows = cursor.fetchall()
     return jsonify(items=[dict(row) for row in rows])
 
@@ -76,21 +82,31 @@ def post_runs():
     valid_skins = {skin["id"] for skin in RULES["skins"]} | {"nam", "quang", "son", "viet"}
     if not isinstance(clean["skin_id"], str) or clean["skin_id"] not in valid_skins:
         errors["skin_id"] = "Nhân vật không tồn tại."
-    if clean["rules_version"] != RULES["rules_version"]:
+    version = clean["rules_version"]
+    if version not in ALL_RULES:
         errors["rules_version"] = "Phiên bản luật không được hỗ trợ."
+        current_rules = RULES
+    else:
+        current_rules = ALL_RULES[version]
 
-    for key, low, high in (("height", 0, RULES["finish_height"]),
-                           ("elapsed_ms", 1, RULES["max_duration_ms"]),
-                           ("placement", 1, 5)):
+    max_placement = 4 if version == "v2" else 5
+    for key, low, high in (("height", 0, current_rules["finish_height"]),
+                           ("elapsed_ms", 1, current_rules["max_duration_ms"]),
+                           ("placement", 1, max_placement)):
         if type(clean[key]) is not int or not low <= clean[key] <= high:
             errors[key] = f"Cần số nguyên từ {low} đến {high}."
 
     if clean["outcome"] not in ("finished", "dnf"):
         errors["outcome"] = "Kết quả không hợp lệ."
     elif "height" not in errors:
-        reached_goal = clean["height"] == RULES["finish_height"]
+        reached_goal = clean["height"] == current_rules["finish_height"]
         if reached_goal != (clean["outcome"] == "finished"):
             errors["outcome"] = "Kết quả không khớp độ cao."
+
+    if clean.get("outcome") == "finished" and version == "v2" and "elapsed_ms" not in errors:
+        min_finish = current_rules.get("min_finish_duration_ms", 7500)
+        if clean["elapsed_ms"] < min_finish:
+            errors["elapsed_ms"] = f"Thời gian về đích không thể nhỏ hơn {min_finish}ms."
 
     if errors:
         raise APIError("invalid_run", "Dữ liệu chưa hợp lệ.", errors, 422)
@@ -132,7 +148,7 @@ def run_detail(run_id):
 @runs_api.get("/api/leaderboard")
 def leaderboard():
     version = request.args.get("rules_version", RULES["rules_version"])
-    if version != RULES["rules_version"]:
+    if version not in ALL_RULES:
         raise APIError("invalid_rules", "Phiên bản luật không hợp lệ.", status_code=422)
     rows = get_db().execute(
         """
