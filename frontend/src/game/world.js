@@ -45,24 +45,28 @@ export function pickRandomType(rng = Math.random) {
   return PLATFORM_TYPES.BOUNCY;                    // 15% bệ lò xo bật cao
 }
 
-// Tính số lượng bệ trên một tầng dựa theo độ cao (Issue #22 & #26)
-// Khi leo càng cao, mật độ bệ giảm dần để tăng độ khó, nhưng luôn có tối thiểu 1 bệ
-export function getPlatformCountForHeight(tierY, rng = Math.random) {
-  const altitude = Math.max(0, 460 - tierY);
+// Sàn xuất phát của world vô hạn. Tầng bệ nằm ở độ cao (START_Y - tierY)
+// so với chân người chơi lúc spawn, nên đây là mốc đo cao độ cho mật độ bệ.
+const START_Y = SCREEN_HEIGHT - 110;
 
-  if (altitude < 1000) {
-    // Độ cao thấp (0 - 1000px): Dễ, 3 đến 4 bệ
-    return rng() < 0.5 ? 3 : 4;
-  } else if (altitude < 2500) {
-    // Độ cao trung bình (1000 - 2500px): Thử thách vừa, 2 đến 3 bệ
-    return rng() < 0.5 ? 2 : 3;
-  } else if (altitude < 5000) {
-    // Độ cao cao (2500 - 5000px): Khó, 2 bệ (thỉnh thoảng 1 bệ)
-    return rng() < 0.75 ? 2 : 1;
-  } else {
-    // Đỉnh cao (> 5000px): Cực khó, 1 đến 2 bệ (luôn có tối thiểu 1 bệ để route liên tục)
-    return rng() < 0.5 ? 1 : 2;
-  }
+// Đường cong mật độ: bắt đầu ở DENSITY_MAX, mỗi DENSITY_FADE_SPAN mét mất
+// đúng 1 bệ, và dừng lại ở DENSITY_MIN. Trước đây dùng 4 ngưỡng cứng
+// (1000/2500/5000) nên mật độ rơi cụt ~0.8 bệ ngay tại mốc - người chơi
+// cảm nhận "chột" thay vì thấy độ khó tăng dần.
+const DENSITY_MAX = 4;
+const DENSITY_MIN = 2;
+const DENSITY_FADE_SPAN = 1500;
+
+// Tính số lượng bệ trên một tầng dựa theo độ cao (Issue #22 & #26)
+// Khi leo càng cao, mật độ bệ giảm đều để tăng độ khó, nhưng luôn có tối thiểu
+// DENSITY_MIN bệ. Sàn 2 bệ là bắt buộc: tầng chỉ 1 bệ sẽ bị ensureRoute
+// thêm ngay bệ thứ 2, nên đặt sàn 1 chỉ làm hao RNG mà không giảm thêm độ khó.
+export function getPlatformCountForHeight(tierY, rng = Math.random, baseY = START_Y) {
+  const altitude = Math.max(0, baseY - tierY);
+  const exact = DENSITY_MAX - altitude / DENSITY_FADE_SPAN;
+  // Dao động nhẹ để các tầng cùng độ cao không bị giống hệt nhau máy móc.
+  const jitter = (rng() - 0.5) * 0.6;
+  return Math.max(DENSITY_MIN, Math.min(DENSITY_MAX, Math.round(exact + jitter)));
 }
 
 // Hàm giải quyết xung đột khoảng cách và giới hạn di chuyển của các bệ trong cùng một tầng
@@ -299,8 +303,10 @@ export function createPlatformTier(
 }
 
 // Khởi tạo thế giới: Hỗ trợ cả 2 chế độ (Đường đua hữu hạn & Vô hạn thưa dần theo Issue #22/#26)
+// Mặc định là VÔ HẠN: sinh bệ liên tục theo camera, không sàn full-width, không bệ đích.
+// Chế độ hữu hạn của WORLD-01 vẫn còn nguyên, gọi bằng createWorld({ isFinite: true }).
 export function createWorld({
-  isFinite = true,
+  isFinite = false,
   forIntro = false,
   soloStart = false,
   seed = null,
@@ -390,7 +396,7 @@ export function createWorld({
   }
 
   // --- CHẾ ĐỘ 2: ĐƯỜNG ĐUA VÔ HẠN (ENDLESS MODE - ISSUE #22 & #26) ---
-  const startY = SCREEN_HEIGHT - 110;
+  const startY = START_Y;
   const playerCenterX = 300 + 17;
   const startPlatform = {
     x: Math.round(playerCenterX - PLATFORM_WIDTH / 2),
@@ -459,28 +465,64 @@ export function spawnIntroPlatforms(world, targetCeiling = -1400, rng = Math.ran
   }
 }
 
+// Mép của dải bầu trời mà createWorld({ forIntro }) cố tình bỏ trống để camera
+// trượt từ màn hình mở đầu xuống không vấp bệ.
+const INTRO_BAND_BOTTOM = -220;
+const INTRO_BAND_TOP = -650;
+
+// Bước dọc tới tầng kế tiếp, luôn nằm trong [MIN_GAP_Y, MAX_GAP_Y].
+// MAX_GAP_Y = 78 cộng thêm nhiễu rung nội tầng (±4px mỗi bên) thì bước xấu nhất
+// là 86px, vẫn nằm dưới giới hạn nhảy thật 112.67px.
+function nextTierY(highestY, rng = Math.random) {
+  return Math.round(highestY - (MIN_GAP_Y + rng() * (MAX_GAP_Y - MIN_GAP_Y)));
+}
+
 // Lấp đầy các tầng bệ vào khu vực bầu trời (-650 đến -220) khi vào game để người chơi leo tháp liên tục không bị hẫng
 export function fillGameplayPlatforms(world, rng = Math.random) {
-  const hasGapInSky = !world.platforms.some(p => p.y >= -600 && p.y <= -260);
-  if (hasGapInSky) {
-    let tierY = -220;
-    const activeRng = world.rng ?? rng;
-    const maxStepY = MAX_GAP_Y - 8;
-    while (tierY > -650) {
-      const deltaY = MIN_GAP_Y + activeRng() * (maxStepY - MIN_GAP_Y);
-      tierY = Math.round(tierY - deltaY);
-      if (tierY > -650) {
-        const tierPlatforms = createPlatformTier(tierY, SCREEN_WIDTH, activeRng, {
-          densityScale: world.densityScale ?? false,
-        });
-        if (world.routeX !== undefined) {
-          world.routeX = ensureRoute(tierPlatforms, world.routeX, tierY, { rng: activeRng });
-        }
-        for (const p of tierPlatforms) {
-          world.platforms.push(p);
-        }
-      }
+  const activeRng = world.rng ?? rng;
+
+  // Dải đã được lấp đầy chưa? Chỉ nhìn vùng GIỮA dải, cách mỗi mép tối thiểu
+  // một MAX_GAP_Y. Nếu kiểm tra cả mép thì một bệ lệch 1-3px do jitter sẽ làm
+  // hàm tưởng là đã lấp và bỏ qua -> hụt cả dải, lỗ hổng hơn 400px.
+  const sampleTop = INTRO_BAND_TOP + MAX_GAP_Y;
+  const sampleBottom = INTRO_BAND_BOTTOM - MAX_GAP_Y;
+  if (world.platforms.some(p => p.y > sampleTop && p.y < sampleBottom)) return;
+
+  const below = world.platforms.filter(p => p.y >= INTRO_BAND_BOTTOM);
+  const above = world.platforms.filter(p => p.y <= INTRO_BAND_TOP);
+  if (below.length === 0 || above.length === 0) return;
+
+  // Phải neo vào tầng thật đã có, KHÔNG hard-code -220: vòng lặp createWorld có
+  // thể đã bỏ qua cả tầng sát mép, nên tầng cuối cùng nằm ở bất kỳ đâu trong
+  // (-220, -150]. Nếu bắt đầu từ hằng số -220 rồi trừ deltaY ngay, tầng đầu tiên
+  // rơi vào ~-280 và tạo lỗ hổng gần 2x giới hạn nhảy -> người chơi kẹt cứng.
+  let tierY = Math.min(...below.map(p => p.y));
+  const ceilingY = Math.max(...above.map(p => p.y));
+
+  const generateTier = (y) => {
+    const tierPlatforms = createPlatformTier(y, SCREEN_WIDTH, activeRng, {
+      densityScale: world.densityScale ?? false,
+    });
+    if (world.routeX !== undefined) {
+      world.routeX = ensureRoute(tierPlatforms, world.routeX, y, { rng: activeRng });
     }
+    for (const p of tierPlatforms) {
+      world.platforms.push(p);
+    }
+    return Math.min(...tierPlatforms.map(p => p.y));
+  };
+
+  while (true) {
+    const nextY = nextTierY(tierY, activeRng);
+    if (nextY <= INTRO_BAND_TOP) break;
+    tierY = generateTier(nextY);
+  }
+
+  // Vá nốt mối trên. Vòng lặp dừng khi bước kế tiếp chạm đáy -650, nên tầng cuối
+  // còn cách tầng trần thật tới ~156px nếu không đặt thêm tầng nối.
+  if (tierY - ceilingY > MAX_GAP_Y) {
+    const bridgeY = Math.max(tierY - MAX_GAP_Y, ceilingY + MIN_GAP_Y);
+    generateTier(bridgeY);
   }
 }
 

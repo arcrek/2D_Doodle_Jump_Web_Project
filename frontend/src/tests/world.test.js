@@ -4,6 +4,7 @@ import {
   createPlatformTier,
   updatePlatforms,
   ensureRoute,
+  fillGameplayPlatforms,
   seededRandom,
   SCREEN_WIDTH,
   SCREEN_HEIGHT,
@@ -19,6 +20,52 @@ import {
   PLATFORM_TYPES,
   getPlatformCountForHeight,
 } from '../game/world.js';
+import { GRAVITY, JUMP_VELOCITY } from '../game/physics.js';
+
+// Chiều cao nhảy tối đa mà vật lý thực sự cho phép: v0^2 / (2g)
+const MAX_JUMP_RISE = (JUMP_VELOCITY * JUMP_VELOCITY) / (2 * GRAVITY);
+
+// Sàn xuất phát của world vô hạn. Tầng bệ ở độ cao `altitude` nằm tại
+// tierY = START_Y - altitude, khớp với chân người chơi lúc spawn.
+const START_Y = SCREEN_HEIGHT - 110;
+
+// Trung bình số bệ/tầng tại một độ cao, lấy mẫu nhiều lần với RNG đã gieo
+// để kết quả ổn định chứ không phụ thuộc thứ tự lời gọi.
+function meanDensity(altitude, samples = 4000) {
+  const tierY = START_Y - altitude;
+  let seed = (Math.imul(altitude, 2654435761) ^ 0x9e3779b9) >>> 0;
+  let sum = 0;
+  for (let i = 0; i < samples; i += 1) {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    sum += getPlatformCountForHeight(tierY, () => ((t ^ (t >>> 14)) >>> 0) / 4294967296);
+  }
+  return sum / samples;
+}
+
+// Nhóm bệ theo tầng Y. Sai số 15px đủ rộng cho jitter nội tầng (±4px)
+//
+// nhưng hẹp hơn nhiều so với MIN_GAP_Y, nên không gộp nhầm 2 tầng liền kề.
+function groupIntoTiers(platforms) {
+  const sorted = [...platforms].sort((a, b) => b.y - a.y); // từ dưới lên trên
+  const tiers = [];
+  let current = [];
+  let currentY = sorted[0]?.y ?? 0;
+  for (const p of sorted) {
+    if (Math.abs(p.y - currentY) <= 15) current.push(p);
+    else { tiers.push(current); current = [p]; currentY = p.y; }
+  }
+  if (current.length) tiers.push(current);
+  return tiers;
+}
+
+// Khoảng cách dọc nhỏ nhất giữa tầng dưới và tầng trên
+function minVerticalGap(lowerTier, upperTier) {
+  let min = Infinity;
+  for (const low of lowerTier) for (const up of upperTier) min = Math.min(min, low.y - up.y);
+  return min;
+}
 
 describe('world.js - Finite Race Track & Procedural Generation', () => {
   // 1. Mulberry32 PRNG tests
@@ -63,7 +110,7 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
     });
 
     it('platform sizes match constants without hard-coding', () => {
-      const world = createWorld({ seed: 123 });
+      const world = createWorld({ isFinite: true, seed: 123 });
       for (const p of world.platforms) {
         if (p.type === PLATFORM_TYPES.FLOOR) {
           expect(p.width).toBe(SCREEN_WIDTH);
@@ -82,7 +129,7 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
   // 3. Floor platform
   describe('Floor platform', () => {
     it('floor platform spans full width', () => {
-      const world = createWorld({ seed: 42 });
+      const world = createWorld({ isFinite: true, seed: 42 });
       const floor = world.platforms[0];
 
       expect(floor.type).toBe(PLATFORM_TYPES.FLOOR);
@@ -97,7 +144,7 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
   // 4. Finish platform & finite track
   describe('Finish platform and finite boundary', () => {
     it('finish platform at correct Y', () => {
-      const world = createWorld({ seed: 42 });
+      const world = createWorld({ isFinite: true, seed: 42 });
       const finish = world.platforms[world.platforms.length - 1];
 
       expect(finish.type).toBe(PLATFORM_TYPES.FINISH);
@@ -109,7 +156,7 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
     });
 
     it('no platform exists above finish line', () => {
-      const world = createWorld({ seed: 42 });
+      const world = createWorld({ isFinite: true, seed: 42 });
       expect(world.isFinite).toBe(true);
 
       for (const p of world.platforms) {
@@ -121,7 +168,7 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
   // 5. Update platforms when isFinite
   describe('updatePlatforms behavior with isFinite', () => {
     it('updatePlatforms() does not spawn when isFinite', () => {
-      const world = createWorld({ seed: 42 });
+      const world = createWorld({ isFinite: true, seed: 42 });
       const initialCount = world.platforms.length;
 
       world.cameraY = -5000;
@@ -133,7 +180,7 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
     });
 
     it('updatePlatforms() preserves lower platforms and floor when isFinite', () => {
-      const world = createWorld({ seed: 42 });
+      const world = createWorld({ isFinite: true, seed: 42 });
       const initialCount = world.platforms.length;
 
       world.cameraY = -2000;
@@ -232,7 +279,7 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
     it('ensureRoute retry limit prevents infinite loop', () => {
       // RNG giả lập luôn trả về 0.99 (giá trị sát cận biên)
       const difficultRng = () => 0.99;
-      const world = createWorld({ rng: difficultRng });
+      const world = createWorld({ isFinite: true, rng: difficultRng });
 
       expect(world.platforms.length).toBeGreaterThan(10);
       expect(world.platforms[world.platforms.length - 1].type).toBe(PLATFORM_TYPES.FINISH);
@@ -245,6 +292,290 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
       const result = ensureRoute(packedTier, 300, 100, { maxRetries: 5 });
       expect(typeof result).toBe('number');
       expect(packedTier.some(p => p.safe)).toBe(true);
+    });
+  });
+
+  // 6b. Vertical reachability of the world the player actually gets
+  describe('Vertical reachability of the live intro world', () => {
+    // Đây chính là world mà engine.js dựng ra khi bấm Start:
+    // createWorld({ forIntro: true }) + fillGameplayPlatforms().
+    const buildLiveWorld = (seed) => {
+      const world = createWorld({ forIntro: true, seed });
+      fillGameplayPlatforms(world);
+      return world;
+    };
+
+    it('never leaves a tier further above than one jump, across 200 seeds', () => {
+      const deadEnds = [];
+      for (let seed = 1; seed <= 200; seed += 1) {
+        const tiers = groupIntoTiers(buildLiveWorld(seed).platforms);
+        for (let i = 1; i < tiers.length; i += 1) {
+          const gap = minVerticalGap(tiers[i - 1], tiers[i]);
+          if (gap > MAX_JUMP_RISE) {
+            deadEnds.push({ seed, from: tiers[i - 1][0].y, to: tiers[i][0].y, gap });
+          }
+        }
+      }
+      expect(deadEnds).toEqual([]);
+    });
+
+    it('leaves no vertical dead end at either edge of the intro title band', () => {
+      // Dải [-650, -220] bị createWorld(forIntro) bỏ qua rồi fillGameplayPlatforms lấp lại.
+      // Hai mốc này là nơi dễ để lại lỗ hổng nếu vòng lặp lấp không neo vào tầng thật.
+      const BAND_TOP = -650;
+      const BAND_BOTTOM = -220;
+      const problems = [];
+
+      for (let seed = 1; seed <= 200; seed += 1) {
+        const tiers = groupIntoTiers(buildLiveWorld(seed).platforms);
+        for (let i = 1; i < tiers.length; i += 1) {
+          const lowerY = tiers[i - 1][0].y;
+          const upperY = tiers[i][0].y;
+          const crossesBottom = lowerY > BAND_BOTTOM && upperY <= BAND_BOTTOM;
+          const crossesTop = lowerY > BAND_TOP && upperY <= BAND_TOP;
+          if (!crossesBottom && !crossesTop) continue;
+          const gap = minVerticalGap(tiers[i - 1], tiers[i]);
+          if (gap > MAX_JUMP_RISE) problems.push({ seed, edge: crossesBottom ? 'bottom' : 'top', gap });
+        }
+      }
+
+      expect(problems).toEqual([]);
+    });
+
+    // ensureRoute chỉ đẩy thêm bệ khi tầng hiện tại không có bệ nào nằm trong
+    // ROUTE_MAX_STEP của bệ trước. Ở cao độ lớn getPlatformCountForHeight rút
+    // xuống còn 1 bệ/tầng nên nhánh đẩy mới thực sự xảy ra - đó là nơi lỗi lộ ra.
+    function* walkRouteChain(seed, startTierY, stepPx, tierCount) {
+      const rng = seededRandom(seed);
+      let previousX = 300;
+      let pushed = 0;
+      for (let i = 0; i < tierCount; i += 1) {
+        const tierY = startTierY - i * stepPx;
+        const tier = createPlatformTier(tierY, SCREEN_WIDTH, rng, { densityScale: true });
+        const before = tier.length;
+        const returned = ensureRoute(tier, previousX, tierY, { rng });
+        if (tier.length > before) pushed += 1;
+        const routePlatform = tier.find(p => p.safe);
+        yield { tier, returned, routePlatform, previousX, pushed };
+        previousX = routePlatform.x;
+      }
+    };
+
+    it('ensureRoute returns the x of the route platform actually left in the tier', () => {
+      const mismatches = [];
+      let totalPushed = 0;
+      // cao độ thấp (nhiều bệ/tầng) và cao độ cao (1-2 bệ/tầng)
+      for (const [start, step] of [[-100, 70], [-4600, 70]]) {
+        for (const seed of [1, 2, 3, 5, 8, 13, 21, 34]) {
+          for (const { tier, returned, routePlatform, pushed } of walkRouteChain(seed, start, step, 80)) {
+            if (routePlatform && returned !== routePlatform.x) {
+              mismatches.push({ seed, start, returned, actual: routePlatform.x });
+            }
+            totalPushed = pushed;
+          }
+        }
+      }
+
+      expect(totalPushed).toBeGreaterThan(0);
+      expect(mismatches).toEqual([]);
+    });
+
+    it('keeps consecutive route platforms within ROUTE_MAX_STEP by real position', () => {
+      const breaks = [];
+      for (const [start, step] of [[-100, 70], [-4600, 70]]) {
+        for (const seed of [1, 2, 3, 5, 8, 13, 21, 34]) {
+          for (const { routePlatform, previousX } of walkRouteChain(seed, start, step, 80)) {
+            if (Math.abs(routePlatform.x - previousX) > ROUTE_MAX_STEP) {
+              breaks.push({ seed, start, from: previousX, to: routePlatform.x });
+            }
+          }
+        }
+      }
+
+      expect(breaks).toEqual([]);
+    });
+  });
+
+  // 6c. Mặc định sinh vô hạn, không có bệ full-width nào
+  describe('Endless is the default mode (no full-width platform)', () => {
+    it('createWorld() with no options returns an endless world', () => {
+      const world = createWorld({ seed: 42 });
+
+      expect(world.isFinite).toBe(false);
+      expect(world.finishY).toBeNull();
+      expect(world.platforms.some(p => p.type === PLATFORM_TYPES.FLOOR)).toBe(false);
+      expect(world.platforms.some(p => p.type === PLATFORM_TYPES.FINISH)).toBe(false);
+      for (const p of world.platforms) expect(p.width).toBe(PLATFORM_WIDTH);
+    });
+
+    it('the world the game actually builds has no full-width platform anywhere', () => {
+      // Đúng chuỗi mà engine.js gọi: createWorld({ forIntro: true }) + fillGameplayPlatforms().
+      // Không được có bệ dài nào - không ở đáy lúc spawn, không ở mốc 3000m.
+      for (const seed of [1, 7, 42, 175, 2024]) {
+        const world = createWorld({ forIntro: true, seed });
+        fillGameplayPlatforms(world);
+
+        const fullWidth = world.platforms.filter(p => p.width > PLATFORM_WIDTH);
+        expect(fullWidth).toEqual([]);
+      }
+    });
+
+    it('keeps spawning climbable platforms all the way past the 3000m line', () => {
+      const world = createWorld({ seed: 5 });
+      let playerY = 430;
+      let starved = null;
+
+      for (let step = 0; step < 20000 && playerY > -3600; step += 1) {
+        playerY -= 8;
+        world.cameraY = Math.min(world.cameraY, playerY - 540 * 0.6);
+        updatePlatforms(world, 1 / 60);
+
+        if (step % 60 === 0) {
+          const hasPlatformAbove = world.platforms
+            .some(p => p.y < playerY - 20 && playerY - p.y <= MAX_JUMP_RISE);
+          if (!hasPlatformAbove && !starved) {
+            starved = { step, playerY, height: Math.round(388 - playerY) };
+          }
+        }
+      }
+
+      expect(388 - playerY).toBeGreaterThan(3000);
+      expect(starved).toBeNull();
+    });
+
+    it('never leaves a dead end while climbing, from spawn to past 3000m', () => {
+      const world = createWorld({ seed: 11 });
+      let playerY = 430;
+
+      for (let step = 0; step < 20000 && playerY > -3400; step += 1) {
+        playerY -= 8;
+        world.cameraY = Math.min(world.cameraY, playerY - 540 * 0.6);
+        updatePlatforms(world, 1 / 60);
+      }
+
+      const tiers = groupIntoTiers(world.platforms.filter(p => !p.broken));
+      const deadEnds = [];
+      for (let i = 1; i < tiers.length; i += 1) {
+        const gap = minVerticalGap(tiers[i - 1], tiers[i]);
+        if (gap > MAX_JUMP_RISE) deadEnds.push({ from: tiers[i - 1][0].y, to: tiers[i][0].y, gap });
+      }
+
+      expect(deadEnds).toEqual([]);
+    });
+
+    // WORLD-01 vẫn còn nguyên: chỉ mặc định đổi, không xoá chế độ hữu hạn.
+    it('finite mode is still reachable on demand, floor and finish intact', () => {
+      const world = createWorld({ isFinite: true, seed: 42 });
+
+      expect(world.isFinite).toBe(true);
+
+      const floor = world.platforms[0];
+      expect(floor.type).toBe(PLATFORM_TYPES.FLOOR);
+      expect(floor.width).toBe(SCREEN_WIDTH);
+
+      const finish = world.platforms[world.platforms.length - 1];
+      expect(finish.type).toBe(PLATFORM_TYPES.FINISH);
+      expect(finish.width).toBe(SCREEN_WIDTH);
+
+      const before = world.platforms.length;
+      world.cameraY = -5000;
+      updatePlatforms(world, 1 / 60);
+      expect(world.platforms.length).toBe(before);
+    });
+  });
+
+  // 6d. Mật độ bệ giảm mượt theo độ cao (độ khó tăng dần)
+  describe('Platform density thins out gradually with altitude', () => {
+    it('follows the spec curve: 4 at the bottom, 3 at 1500m, 2 at 3000m', () => {
+      expect(meanDensity(0)).toBeGreaterThanOrEqual(3.9);
+      expect(meanDensity(1000)).toBeGreaterThanOrEqual(2.9);
+      expect(meanDensity(1500)).toBeGreaterThanOrEqual(2.9);
+      expect(meanDensity(2000)).toBeGreaterThanOrEqual(2.4);
+      expect(meanDensity(3000)).toBeGreaterThanOrEqual(1.9);
+      expect(meanDensity(6000)).toBeGreaterThanOrEqual(1.9);
+    });
+
+    it('never decreases, and never drops more than one platform across 1500m', () => {
+      const samples = [];
+      for (let altitude = 0; altitude <= 3000; altitude += 50) {
+        samples.push({ altitude, mean: meanDensity(altitude, 2000) });
+      }
+
+      for (let i = 1; i < samples.length; i += 1) {
+        const drop = samples[i - 1].mean - samples[i].mean;
+        expect(samples[i].mean).toBeLessThanOrEqual(samples[i - 1].mean + 0.05);
+        expect(drop).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('never drops below 2 platforms per tier, however high the climb', () => {
+      for (const altitude of [0, 500, 1000, 2000, 3000, 4000, 6000, 10000, 20000]) {
+        const tierY = START_Y - altitude;
+        for (const r of [0, 0.25, 0.5, 0.75, 0.999999]) {
+          expect(getPlatformCountForHeight(tierY, () => r)).toBeGreaterThanOrEqual(2);
+        }
+      }
+    });
+
+    it('leaves no vertical dead end when tiers get thinner', () => {
+      const deadEnds = [];
+      const density = [];
+
+      for (const seed of [1, 5, 11, 42, 175, 999, 31337, 777]) {
+        const world = createWorld({ seed });
+        // Gom tầng TRONG LÚC leo: updatePlatforms cull mọi tầng đã lọt khỏi
+        // màn hình, nên đọc world.platforms ở cuối sẽ mất sạch tầng cao.
+        const seen = new Set();
+        const collected = [];
+        let playerY = START_Y;
+        for (let step = 0; step < 20000 && playerY > -2700; step += 1) {
+          playerY -= 8;
+          world.cameraY = Math.min(world.cameraY, playerY - SCREEN_HEIGHT * 0.6);
+          updatePlatforms(world, 1 / 60, { cullOffscreen: true });
+          if (step % 20 !== 0) continue;
+
+          const sorted = world.platforms.filter(p => !seen.has(p)).sort((a, b) => b.y - a.y);
+          let tier = [];
+          for (const p of sorted) {
+            if (tier.length && Math.abs(p.y - tier[0].y) <= 15) tier.push(p);
+            else {
+              if (tier.length) collected.push({ y: tier[0].y, n: tier.length });
+              tier = [p];
+            }
+          }
+          if (tier.length) collected.push({ y: tier[0].y, n: tier.length });
+          for (const p of sorted) seen.add(p);
+        }
+
+        collected.sort((a, b) => b.y - a.y);
+        for (let i = 1; i < collected.length; i += 1) {
+          const gap = collected[i - 1].y - collected[i].y;
+          if (gap > MAX_JUMP_RISE) deadEnds.push({ seed, from: collected[i - 1].y, gap });
+        }
+
+        const meanOf = list => list.reduce((s, c) => s + c.n, 0) / Math.max(1, list.length);
+        density.push({
+          seed,
+          early: meanOf(collected.filter(c => c.y > -1600)),
+          late: meanOf(collected.filter(c => c.y < -2000)),
+        });
+      }
+
+      expect(deadEnds).toEqual([]);
+      // Tầng cao phải thưa hơn tầng thấp trong chính world đang chơi
+      for (const d of density) {
+        expect(d.late).toBeLessThan(d.early);
+      }
+    });
+
+    it('finite mode keeps 3-4 platforms per tier, unchanged', () => {
+      for (let y = START_Y; y > -2500; y -= 70) {
+        const tier = createPlatformTier(y, SCREEN_WIDTH, seededRandom(y + 3000), {
+          densityScale: false,
+        });
+        expect(tier.length).toBeGreaterThanOrEqual(3);
+        expect(tier.length).toBeLessThanOrEqual(4);
+      }
     });
   });
 
