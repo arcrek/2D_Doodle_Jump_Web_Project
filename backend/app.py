@@ -8,6 +8,9 @@ from .db import init_db, close_db
 from .errors import APIError
 from .routes.config import config_api
 from .routes.runs import runs_api
+from .routes.rooms import rooms_api
+from .socket import socketio
+from . import events
 
 
 def create_app(test_config=None):
@@ -17,7 +20,8 @@ def create_app(test_config=None):
         app.config.update(test_config)
     app.register_blueprint(config_api)
     app.register_blueprint(runs_api)
-
+    app.register_blueprint(rooms_api)
+    socketio.init_app(app)
     app.teardown_appcontext(close_db)
 
     @app.errorhandler(APIError)
