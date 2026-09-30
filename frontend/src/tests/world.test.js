@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   createWorld,
   createPlatformTier,
@@ -141,7 +141,8 @@ describe('world.js - Finite Race Track & Procedural Generation', () => {
       // readFileSync bằng đường dẫn tương đối từ gốc frontend. KHÔNG dùng
     // import.meta.url: jsdom đổi nó thành URL scheme http://, readFileSync
     // chỉ nhận scheme file://.
-    const src = readFileSync('src/game/world.js', 'utf8');
+    const worldPath = existsSync('src/game/world.js') ? 'src/game/world.js' : 'frontend/src/game/world.js';
+    const src = readFileSync(worldPath, 'utf8');
       const exported = [...src.matchAll(/export const (\w+)\s*=/g)].map((m) => m[1]);
       expect(exported.length).toBeGreaterThan(5);
       for (const name of exported) {
