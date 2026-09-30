@@ -15,3 +15,9 @@ backend/instance/
 .idea/
 .vscode/
 test-results/
+
+# Tài liệu làm việc cục bộ, không thuộc mã nguồn
+.agents/
+docs/superpowers/
+WORLD-01_workflow.md
+world_01_analysis.md

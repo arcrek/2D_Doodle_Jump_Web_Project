@@ -4,8 +4,42 @@ export const SCREEN_WIDTH = 960;
 export const SCREEN_HEIGHT = 540;
 export const PLATFORM_WIDTH = 120;  // Bệ nhỏ gọn hơn, phù hợp màn rộng
 export const PLATFORM_HEIGHT = 14;  // Chiều cao chuẩn đồng nhất cho mọi bệ
-export const MIN_GAP_Y = 55;
-export const MAX_GAP_Y = 78;  // Đảm bảo nhân vật luôn nhảy tới được (từ 85 → 78)
+// Khoảng cách dọc giữa hai tầng kề nằm trong [MIN_GAP_Y, MAX_TIER_STEP].
+// Kéo dài ra để bệ nằm xa nhau hơn theo chiều dọc: mỗi tầng cách nhau tối
+// thiểu 62px thay vì 55px, nên phải nhảy nhiều lần hơn để leo cùng độ cao.
+//
+// Ràng buộc vật lý (giới hạn nhảy thật = 112,67px):
+//   bước xấu nhất = MAX_TIER_STEP + TIER_SPAN = 70 + 42 = 112px
+// Chỉ còn 0,6% lề — đây là trần, không thể kéo dài thêm nữa.
+// Test "keeps the worst-case vertical step inside the real jump limit" chặn.
+export const MIN_GAP_Y = 62;
+export const MAX_TIER_STEP = 70;
+
+// MAX_GAP_Y chỉ còn là ngưỡng "đã đủ gần vạch đích" trong chế độ hữu hạn,
+// không phải bước dọc tối đa nữa (việc đó do MAX_TIER_STEP đảm nhiệm).
+export const MAX_GAP_Y = 78;
+
+// Bậc thang dọc giữa các bệ trong cùng một tầng: mỗi bệ lệch bệ trước đúng
+// PLATFORM_HEIGHT (14px), thay cho rung ngẫu nhiên ±Y_SPREAD trước đây.
+// Tầng 4 bệ trải rộng 3×14 = 42px nên không còn đường ngang nào thấy được.
+//
+// TIER_SPAN = bề rộng lớn nhất của một tầng = (số bệ - 1) × TIER_STEP_Y.
+// Bề rộng này trừ thẳng vào ngân sách dọc ở trên.
+export const TIER_STEP_Y = PLATFORM_HEIGHT;
+export const TIER_SPAN = 3 * TIER_STEP_Y;  // 42px — tầng 4 bệ
+
+// Lệch dọc cho từng bệ trong một tầng, đặt theo THỨ TỰ X nên tầng chạy chéo
+// đều (đảo chiều khi rung). Tầng 1 bệ trả về [0] — không lệch, như trước.
+export function tierStaggerOffsets(count, flip = false) {
+  const spread = (count - 1) * TIER_STEP_Y;
+  const sign = flip ? -1 : 1;
+  return Array.from({ length: count }, (_, i) => {
+    // `| 0` để chuẩn hoá -0 thành 0. Math.round(-0.5) trả -0, và so sánh
+    // deep-equal với [0] sẽ đỏ trong test nếu không có bước này.
+    const v = Math.round(sign * (i * TIER_STEP_Y - spread / 2));
+    return v === 0 ? 0 : v;
+  });
+}
 
 export const MAX_JUMPABLE_GAP = 200; // px - khoảng cách giữa 2 bệ kề nhau (edge-to-edge) tối đa có thể nhảy qua
 export const MAX_JUMPABLE_X_DISTANCE = MAX_JUMPABLE_GAP; // Alias tương thích ngược
@@ -53,20 +87,32 @@ const START_Y = SCREEN_HEIGHT - 110;
 // đúng 1 bệ, và dừng lại ở DENSITY_MIN. Trước đây dùng 4 ngưỡng cứng
 // (1000/2500/5000) nên mật độ rơi cụt ~0.8 bệ ngay tại mốc - người chơi
 // cảm nhận "chột" thay vì thấy độ khó tăng dần.
+//
+// DENSITY_FADE_SPAN = 1000 nghĩa là 4 -> 3 -> 2: mỗi nấc chênh đúng 1 bệ,
+// cách nhau 1000px, nên chênh lệch giữa các độ cao thấy rõ khi chơi. Trước
+// đó là 1500 nên 2 bệ trải dài quá, cảm nhận như nhau.
 const DENSITY_MAX = 4;
 const DENSITY_MIN = 2;
-const DENSITY_FADE_SPAN = 1500;
+const DENSITY_FADE_SPAN = 1000;
 
 // Tính số lượng bệ trên một tầng dựa theo độ cao (Issue #22 & #26)
 // Khi leo càng cao, mật độ bệ giảm đều để tăng độ khó, nhưng luôn có tối thiểu
 // DENSITY_MIN bệ. Sàn 2 bệ là bắt buộc: tầng chỉ 1 bệ sẽ bị ensureRoute
 // thêm ngay bệ thứ 2, nên đặt sàn 1 chỉ làm hao RNG mà không giảm thêm độ khó.
+//
+// LÀM TRÒN NGẪU NHIÊN (stochastic rounding) thay cho Math.round:
+// Math.round giữ KỲ VỌNG ở một giá trị nguyên, nên đường cong thực tế là
+// bậc thang. Tách phần nguyên / phần thập rồi quyết định bằng rng cho
+// E[count] = base đúng bằng base, nên mỗi DENSITY_FADE_SPAN mất đúng 1 bệ.
+//
+// Vẫn dùng ĐÚNG MỘT lần rng() (giữ nguyên đặc tính của hàm cũ).
 export function getPlatformCountForHeight(tierY, rng = Math.random, baseY = START_Y) {
   const altitude = Math.max(0, baseY - tierY);
   const exact = DENSITY_MAX - altitude / DENSITY_FADE_SPAN;
-  // Dao động nhẹ để các tầng cùng độ cao không bị giống hệt nhau máy móc.
-  const jitter = (rng() - 0.5) * 0.6;
-  return Math.max(DENSITY_MIN, Math.min(DENSITY_MAX, Math.round(exact + jitter)));
+  const base = Math.max(DENSITY_MIN, Math.min(DENSITY_MAX, exact));
+  const lo = Math.floor(base);
+  const frac = base - lo;
+  return rng() < frac ? lo + 1 : lo;
 }
 
 // Hàm giải quyết xung đột khoảng cách và giới hạn di chuyển của các bệ trong cùng một tầng
@@ -124,14 +170,17 @@ export function createPlatformTier(
     platformCount = rng() < 0.5 ? 3 : 4; // Mặc định 3 hoặc 4 bệ khi không bật densityScale
   }
 
+  // Tầng chạy chéo lên hay xuống, quyết định một lần cho cả tầng để các bệ
+  // cùng nghiêng theo một hướng (nhìn như bậc thang, không phải rối).
+  const flip = rng() < 0.5;
+
   // Trường hợp 1 bệ duy nhất (độ cao cực lớn)
   if (platformCount === 1) {
     const minMargin = 20;
     const maxMargin = screenWidth - PLATFORM_WIDTH - minMargin;
     const x = Math.round(minMargin + rng() * (maxMargin - minMargin));
     const type = pickRandomType(rng);
-    const yJitter = (rng() - 0.5) * 8;
-    const y = Math.round(tierY + yJitter);
+    const y = Math.round(tierY);
 
     const platform = {
       x,
@@ -162,12 +211,12 @@ export function createPlatformTier(
     const leftMargin = Math.round(minMargin + rng() * Math.max(0, remainingSpace - 2 * minMargin));
 
     const xPositions = [leftMargin, leftMargin + PLATFORM_WIDTH + gap];
+    const offsets = tierStaggerOffsets(2, flip);
     const platforms = [];
 
     for (let i = 0; i < 2; i++) {
       const type = pickRandomType(rng);
-      const yJitter = (rng() - 0.5) * 8;
-      const y = Math.round(tierY + yJitter);
+      const y = Math.round(tierY + offsets[i]);
 
       const platform = {
         x: xPositions[i],
@@ -266,11 +315,11 @@ export function createPlatformTier(
     }
   }
 
+  const offsets = tierStaggerOffsets(platformCount, flip);
   const platforms = [];
   for (let i = 0; i < platformCount; i++) {
     const type = pickRandomType(rng);
-    const yJitter = (rng() - 0.5) * 8;
-    const y = Math.round(tierY + yJitter);
+    const y = Math.round(tierY + offsets[i]);
 
     const platform = {
       x: xPositions[i],
@@ -321,7 +370,7 @@ export function createWorld({
 
   const floorY = SCREEN_HEIGHT - 80;
   const finishY = isFinite ? floorY - finishHeight : null;
-  const maxStepY = MAX_GAP_Y - 8;
+  const maxStepY = MAX_TIER_STEP;
 
   // --- CHẾ ĐỘ 1: ĐƯỜNG ĐUA HỮU HẠN (FINITE RACE TRACK - WORLD-01 WORKFLOW) ---
   if (isFinite) {
@@ -449,7 +498,7 @@ export function createWorld({
 export function spawnIntroPlatforms(world, targetCeiling = -1400, rng = Math.random) {
   const activeRng = world.rng ?? rng;
   let highestY = Math.min(...world.platforms.map(p => p.y));
-  const maxStepY = MAX_GAP_Y - 8;
+  const maxStepY = MAX_TIER_STEP;
   while (highestY > targetCeiling) {
     const deltaY = MIN_GAP_Y + activeRng() * (maxStepY - MIN_GAP_Y);
     const tierY = Math.round(highestY - deltaY);
@@ -470,11 +519,11 @@ export function spawnIntroPlatforms(world, targetCeiling = -1400, rng = Math.ran
 const INTRO_BAND_BOTTOM = -220;
 const INTRO_BAND_TOP = -650;
 
-// Bước dọc tới tầng kế tiếp, luôn nằm trong [MIN_GAP_Y, MAX_GAP_Y].
-// MAX_GAP_Y = 78 cộng thêm nhiễu rung nội tầng (±4px mỗi bên) thì bước xấu nhất
-// là 86px, vẫn nằm dưới giới hạn nhảy thật 112.67px.
+// Bước dọc tới tầng kế tiếp, luôn nằm trong [MIN_GAP_Y, MAX_TIER_STEP].
+// Bước xấu nhất = MAX_TIER_STEP + TIER_SPAN = 70 + 42 = 112px, vẫn nằm
+// dưới giới hạn nhảy thật 112.67px.
 function nextTierY(highestY, rng = Math.random) {
-  return Math.round(highestY - (MIN_GAP_Y + rng() * (MAX_GAP_Y - MIN_GAP_Y)));
+  return Math.round(highestY - (MIN_GAP_Y + rng() * (MAX_TIER_STEP - MIN_GAP_Y)));
 }
 
 // Lấp đầy các tầng bệ vào khu vực bầu trời (-650 đến -220) khi vào game để người chơi leo tháp liên tục không bị hẫng
@@ -585,7 +634,7 @@ export function updatePlatforms(world, dt = 1 / 60, options = {}) {
     : world.cameraY;
   const spawnCeiling = targetCeiling - 250;
   const activeRng = world.rng ?? Math.random;
-  const maxStepY = MAX_GAP_Y - 8;
+  const maxStepY = MAX_TIER_STEP;
 
   while (highestY > spawnCeiling) {
     const deltaY = MIN_GAP_Y + activeRng() * (maxStepY - MIN_GAP_Y);
