@@ -1,3 +1,4 @@
+import sqlite3
 import uuid
 
 import pytest
@@ -19,7 +20,7 @@ def payload(**overrides):
             "run_id": str(uuid.uuid4()),
             "player_id": str(uuid.uuid4()),
             "nickname": "Tester",
-            "skin_id": "nam",
+        "skin_id": "doodle",
             "rules_version": "v1",
             "height": 150,
             "elapsed_ms": 3000,
@@ -38,7 +39,35 @@ def test_save_retry_conflict_and_missing_detail(client):
     assert response.json["created_at"]
     assert client.post("/api/runs", json=run).status_code == 200
     assert client.post("/api/runs", json={**run, "height": 200}).status_code == 409
+    assert client.get("/api/runs/" + run["run_id"].upper()).json["run_id"] == run["run_id"]
+    assert client.get("/api/runs/not-a-uuid").status_code == 404
     assert client.get("/api/runs/" + str(uuid.uuid4())).status_code == 404
+
+
+def test_legacy_run_retry_and_new_skin_validation(client):
+    legacy = payload(skin_id="nam", nickname=" Tester ")
+    database = client.application.config["DATABASE"]
+    with sqlite3.connect(database) as db:
+        db.execute(
+            "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (legacy["run_id"], legacy["player_id"], "Tester", legacy["skin_id"],
+             legacy["rules_version"], legacy["height"], legacy["elapsed_ms"],
+             legacy["outcome"], legacy["placement"], "2026-09-01T00:00:00Z"),
+        )
+    retry = {**legacy, "run_id": legacy["run_id"].upper(), "player_id": legacy["player_id"].upper()}
+    assert client.post("/api/runs", json=retry).status_code == 200
+    assert client.post("/api/runs", json={**retry, "height": 200}).status_code == 409
+    invalid = client.post("/api/runs", json=payload(skin_id="nam"))
+    assert invalid.status_code == 422
+    assert "skin_id" in invalid.json["error"]["details"]
+    assert client.post("/api/runs", json=payload(skin_id="red")).status_code == 201
+
+
+def test_oversized_json_returns_api_error(client):
+    response = client.post("/api/runs", json={"padding": "x" * (16 * 1024)})
+    assert response.status_code == 413
+    assert response.json["error"]["code"] == "request_entity_too_large"
+    assert set(response.json["error"]) == {"code", "message", "details"}
 
 
 @pytest.mark.parametrize("change", [
@@ -70,4 +99,6 @@ def test_leaderboard_limit_and_finish_order(client):
     rows = client.get("/api/leaderboard?rules_version=v1").json["items"]
     assert len(rows) == 10
     assert [row["nickname"] for row in rows[:3]] == ["Winner fast", "Winner slow", "DNF high"]
+    assert set(rows[0]) == {"nickname", "skin_id", "rules_version", "height", "elapsed_ms",
+                            "outcome", "placement", "created_at"}
     assert client.get("/api/leaderboard?rules_version=invalid").status_code == 422

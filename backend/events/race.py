@@ -161,7 +161,7 @@ def on_room_join(data):
         return
 
     skin_id = str(data.get("skin_id", "doodle")).strip()
-    valid_skins = {skin["id"] for skin in RULES["skins"]} | {"nam", "quang", "son", "viet"}
+    valid_skins = {skin["id"] for skin in RULES["skins"]}
     if skin_id not in valid_skins:
         emit(
             "error",

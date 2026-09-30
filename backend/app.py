@@ -16,6 +16,7 @@ from . import events
 def create_app(test_config=None):
     app = Flask(__name__, instance_path=str(Path(__file__).parent / "instance"))
     app.config["DATABASE"] = str(Path(app.instance_path) / "game.db")
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
     if test_config:
         app.config.update(test_config)
     app.register_blueprint(config_api)

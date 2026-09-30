@@ -78,8 +78,17 @@ def post_runs():
     else:
         clean["nickname"] = nickname.strip()
 
-    # Existing v1 runs can still be retried after the new player skins ship.
-    valid_skins = {skin["id"] for skin in RULES["skins"]} | {"nam", "quang", "son", "viet"}
+    db = get_db()
+    if not errors:
+        existing = db.execute(
+            "SELECT * FROM runs WHERE run_id = ?", (clean["run_id"],)
+        ).fetchone()
+        if existing is not None:
+            if any(existing[key] != clean[key] for key in fields):
+                raise APIError("run_conflict", "Mã lượt chơi đã có dữ liệu khác.", status_code=409)
+            return jsonify(dict(existing)), 200
+
+    valid_skins = {skin["id"] for skin in RULES["skins"]}
     if not isinstance(clean["skin_id"], str) or clean["skin_id"] not in valid_skins:
         errors["skin_id"] = "Nhân vật không tồn tại."
     version = clean["rules_version"]
@@ -111,7 +120,6 @@ def post_runs():
     if errors:
         raise APIError("invalid_run", "Dữ liệu chưa hợp lệ.", errors, 422)
 
-    db = get_db()
     created_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     try:
         db.execute(
@@ -137,6 +145,10 @@ def post_runs():
 
 @runs_api.get("/api/runs/<run_id>")
 def run_detail(run_id):
+    try:
+        run_id = str(uuid.UUID(run_id))
+    except (ValueError, TypeError, AttributeError):
+        raise APIError("not_found", "Không tìm thấy lượt chơi.", status_code=404)
     row = get_db().execute(
         "SELECT * FROM runs WHERE run_id = ?", (run_id,)
     ).fetchone()
@@ -152,7 +164,8 @@ def leaderboard():
         raise APIError("invalid_rules", "Phiên bản luật không hợp lệ.", status_code=422)
     rows = get_db().execute(
         """
-        SELECT * FROM runs
+        SELECT nickname, skin_id, rules_version, height, elapsed_ms,
+               outcome, placement, created_at FROM runs
         WHERE rules_version = ?
         ORDER BY CASE outcome WHEN 'finished' THEN 0 ELSE 1 END,
                  CASE WHEN outcome = 'dnf' THEN height END DESC,

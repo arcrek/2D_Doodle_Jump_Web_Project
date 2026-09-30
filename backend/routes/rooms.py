@@ -28,7 +28,7 @@ def _validate_player_fields(data, player_id_key="player_id"):
         clean_nickname = nickname.strip()
 
     skin_id = data.get("skin_id")
-    valid_skins = {skin["id"] for skin in RULES["skins"]} | {"nam", "quang", "son", "viet"}
+    valid_skins = {skin["id"] for skin in RULES["skins"]}
     if not isinstance(skin_id, str) or skin_id not in valid_skins:
         errors["skin_id"] = "Nhân vật không tồn tại."
         clean_skin_id = None

@@ -108,7 +108,7 @@ def test_post_run_and_read_detail(tmp_path):
         "run_id": run_id,
         "player_id": player_id,
         "nickname": " Tester ",
-        "skin_id": "nam",
+        "skin_id": "doodle",
         "rules_version": "v1",
         "height": 100,
         "elapsed_ms": 2500,
@@ -128,7 +128,7 @@ def test_leaderboard_orders_finished_then_highest_dnf(tmp_path):
     player_id = str(uuid.uuid4())
     base = {
         "player_id": player_id,
-        "skin_id": "nam",
+        "skin_id": "doodle",
         "rules_version": "v1",
         "placement": 1,
     }

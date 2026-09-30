@@ -46,6 +46,14 @@ def test_create_room_invalid_payload(client):
     assert resp.status_code == 422
     assert "skin_id" in resp.get_json()["error"]["details"]
 
+    retired = client.post("/api/rooms", json={
+        "host_player_id": str(uuid.uuid4()),
+        "nickname": "HostPlayer",
+        "skin_id": "nam",
+    })
+    assert retired.status_code == 422
+    assert "skin_id" in retired.get_json()["error"]["details"]
+
 
 def test_get_room_by_code_and_id(client):
     host_id = str(uuid.uuid4())
@@ -95,6 +103,14 @@ def test_join_room_lifecycle_and_capacity_limits(client):
         "skin_id": "red",
     })
     assert join2.status_code == 200
+
+    retired = client.post(f"/api/rooms/{room_code}/join", json={
+        "player_id": str(uuid.uuid4()),
+        "nickname": "LegacyPlayer",
+        "skin_id": "nam",
+    })
+    assert retired.status_code == 422
+    assert "skin_id" in retired.get_json()["error"]["details"]
 
     # Player 2 re-joins idempotently
     join2_re = client.post(f"/api/rooms/{room_code}/join", json={

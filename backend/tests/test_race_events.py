@@ -280,6 +280,12 @@ def test_input_validation_on_room_join(app):
     assert err_ev["args"][0]["code"] == "invalid_payload"
     assert "skin_id" in err_ev["args"][0]["details"]
 
+    client.emit("room:join", {"room_id": room_id, "player_id": str(uuid.uuid4()), "skin_id": "nam"})
+    events = client.get_received()
+    err_ev = next((e for e in events if e["name"] == "error"), None)
+    assert err_ev is not None
+    assert "skin_id" in err_ev["args"][0]["details"]
+
     client.disconnect()
 
 
