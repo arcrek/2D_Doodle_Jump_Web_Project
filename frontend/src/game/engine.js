@@ -23,7 +23,7 @@ function easeInOutCubic(t) {
 const Y_INTRO = -2400;
 const SLIDE_DURATION_MS = 6000;
 const START_PLATFORM_DURATION_MS = 500;
-const PLAYER_ENTRANCE_DURATION_MS = 900;
+const PLAYER_ENTRANCE_DURATION_MS = 1000;
 const PLATFORM_REVEAL_DURATION_MS = 1800;
 const BOT_ENTRANCE_DURATION_MS = 900;
 const BOT_JOIN_TIMES_MS = [8000, 16000, 24000, 32000];
@@ -187,9 +187,11 @@ export function createGame(canvas, config, {
       && platform.y - state.world.cameraY > 145 && platform.y - state.world.cameraY < canvas.height - 65);
     let platform = safePlatforms.sort((a, b) => Math.abs(a.y - state.player.y) - Math.abs(b.y - state.player.y))[0];
     if (!platform) {
-      platform = { x: nextBotIndex % 2 === 0 ? 80 : canvas.width - 200,
+      platform = {
+        x: nextBotIndex % 2 === 0 ? 80 : canvas.width - 200,
         y: Math.max(state.world.cameraY + 160, Math.min(state.player.y + 65, state.world.cameraY + canvas.height - 80)),
-        width: 120, height: 14, type: 'standard' };
+        width: 120, height: 14, type: 'standard'
+      };
       state.world.platforms.push(platform);
     }
     const fromLeft = nextBotIndex % 2 === 0;
@@ -357,7 +359,7 @@ export function createGame(canvas, config, {
 
     else if (phase === 'intro_player') {
       if (entranceStartTime === null) entranceStartTime = time;
-      state.ui.playerEntranceProgress = Math.min(1, (time - entranceStartTime) / (reduceMotion ? 150 : PLAYER_ENTRANCE_DURATION_MS));
+      state.ui.playerEntranceProgress = Math.min(1, (time - entranceStartTime) / PLAYER_ENTRANCE_DURATION_MS);
       if (state.ui.playerEntranceProgress >= 1) {
         state.player.x = 300;
         state.player.y = 388;
