@@ -228,9 +228,11 @@ export function render(ctx, state) {
   // 4.5. HIỆU ỨNG VẬT PHẨM (POWERUPS) & DUNG NHAM (LAVA)
   // ===========================================================================
   if (!isMock) {
-    renderPowerups(ctx, world?.platforms, displayPlayer, cameraY, timeSec);
-    const showLava = ['running', 'paused', 'finished', 'warmup_hop', 'wipe_reset'].includes(phase);
-    if (world?.lava && showLava) {
+    const isGameplayPhase = ['running', 'paused', 'finished', 'warmup_hop', 'wipe_reset'].includes(phase);
+    if (isGameplayPhase) {
+      renderPowerups(ctx, world?.platforms, displayPlayer, cameraY, timeSec);
+    }
+    if (world?.lava && isGameplayPhase) {
       renderLava(ctx, world.lava, cameraY, width, height, timeSec, showPlayer ? displayPlayer : null);
     }
   }

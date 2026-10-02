@@ -80,3 +80,34 @@ it('phase-gates lava rendering so lava and warning badges are suppressed outside
   expect(runningTexts.some(t => typeof t === 'string' && t.includes('DUNG NHAM'))).toBe(true);
 });
 
+it('phase-gates powerups rendering so powerups are suppressed outside gameplay', () => {
+  const ctx = context({ width: 640, height: 520 });
+  const platforms = [
+    { x: 300, y: 388, width: 60, height: 15 },
+    { x: 100, y: 200, width: 60, height: 15, powerup: 'rocket' },
+  ];
+  const player = { x: 300, y: 388, width: 34, height: 42 };
+
+  // Phase 'ready': không được vẽ powerup dù bệ có mang rocket
+  const readyState = {
+    player,
+    world: { platforms, cameraY: 0 },
+    bots: [],
+    phase: 'ready',
+    ui: {},
+  };
+  render(ctx, readyState);
+  expect(ctx.translate).not.toHaveBeenCalled();
+
+  // Phase 'intro_title': không được vẽ powerup
+  const introState = { ...readyState, phase: 'intro_title' };
+  render(ctx, introState);
+  expect(ctx.translate).not.toHaveBeenCalled();
+
+  // Phase 'running': được vẽ powerup
+  const runningState = { ...readyState, phase: 'running' };
+  render(ctx, runningState);
+  expect(ctx.translate).toHaveBeenCalledWith(100 + 30, expect.any(Number));
+});
+
+
