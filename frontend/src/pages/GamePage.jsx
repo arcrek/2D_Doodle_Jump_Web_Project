@@ -62,8 +62,13 @@ export default function GamePage() {
   // Restart với hiệu ứng Wipe Transition quét màn hình
   const handleRestart = useCallback(() => {
     setSave({ status: '', message: '' });
-    runRef.current = { run_id: crypto.randomUUID(), player_id: playerId(), nickname: playerProfile.nickname,
-      skin_id: playerProfile.skinId, rules_version: 'endless' };
+    runRef.current = {
+      run_id: crypto.randomUUID(),
+      player_id: playerId(),
+      nickname: playerProfile.nickname,
+      skin_id: playerProfile.skinId,
+      rules_version: 'endless',
+    };
     if (gameRef.current?.triggerRestartWipe) {
       gameRef.current.triggerRestartWipe();
     } else {
@@ -75,8 +80,13 @@ export default function GamePage() {
   // Xử lý khi người chơi submit StartMenu (chọn tên và skin)
   const handleStartGame = useCallback(({ nickname, skinId }) => {
     setPlayerProfile({ nickname, skinId });
-    runRef.current = { run_id: crypto.randomUUID(), player_id: playerId(), nickname,
-      skin_id: skinId, rules_version: 'endless' };
+    runRef.current = {
+      run_id: crypto.randomUUID(),
+      player_id: playerId(),
+      nickname,
+      skin_id: skinId,
+      rules_version: 'endless',
+    };
     setSave({ status: '', message: '' });
     gameRef.current?.setPlayerName?.(nickname);
     if (gameRef.current?.setPlayerSkin) {
@@ -85,7 +95,7 @@ export default function GamePage() {
     setStats(EMPTY_STATS);
     setElapsedMs(0);
     gameRef.current?.beginPlayerEntrance?.();
-  }, [backend.config]);
+  }, []);
 
   // Quay về màn hình Tiêu đề Doodle trên cao
   const handleExitToMenu = useCallback(() => {
@@ -112,8 +122,19 @@ export default function GamePage() {
   }, []);
 
   const handleGameOver = useCallback(async ({ finalHeight, finalMaxHeight, elapsedMs: finalElapsed, placement, ranking, outcome, reason }) => {
-    setStats({ height: finalHeight, maxHeight: finalMaxHeight, placement, ranking, outcome, reason });
-    setElapsedMs(finalElapsed);
+    const isEndless = Boolean(gameConfig?.isEndless || gameConfig?.finish_height == null);
+    const finishHeight = backend.config?.finish_height ?? 3000;
+    const maxDuration = backend.config?.max_duration_ms ?? 180000;
+
+    const achievedHeight = Math.max(0, Math.round(finalMaxHeight ?? finalHeight ?? 0));
+    const validHeight = isEndless ? achievedHeight : Math.min(finishHeight, achievedHeight);
+    const validOutcome = isEndless ? 'dnf' : (validHeight >= finishHeight ? 'finished' : (outcome === 'finished' ? 'finished' : 'dnf'));
+    const validElapsed = Math.max(1, isEndless ? Math.round(finalElapsed || 1) : Math.min(maxDuration, Math.round(finalElapsed || 1)));
+    const validPlacement = Math.max(1, Math.min(5, Math.round(placement) || 1));
+    const rulesVersion = isEndless ? 'endless' : (backend.config?.rules_version || 'v1');
+
+    setStats({ height: validHeight, maxHeight: validHeight, placement: validPlacement, ranking, outcome: validOutcome, reason });
+    setElapsedMs(validElapsed);
     setPhase('finished');
     const run = runRef.current;
     runRef.current = null;
@@ -124,13 +145,19 @@ export default function GamePage() {
     }
     setSave({ status: 'saving', message: 'Đang lưu kết quả…' });
     try {
-      await postJson('/api/runs', { ...run, height: Math.round(finalMaxHeight),
-        elapsed_ms: finalElapsed, outcome, placement });
+      await postJson('/api/runs', {
+        ...run,
+        rules_version: rulesVersion,
+        height: validHeight,
+        elapsed_ms: validElapsed,
+        outcome: validOutcome,
+        placement: validPlacement,
+      });
       setSave({ status: 'saved', message: 'Đã lưu kết quả.' });
     } catch (error) {
       setSave({ status: 'error', message: `Chưa lưu được: ${error.message}` });
     }
-  }, [backend.offline]);
+  }, [backend.config, backend.offline, gameConfig]);
 
   const handlePhaseChange = useCallback((newPhase) => {
     setPhase(newPhase);
@@ -204,7 +231,7 @@ export default function GamePage() {
             {/* Popup Tạm dừng / Kết thúc lượt chơi */}
             <GameOverModal
               phase={phase}
-              height={stats.height}
+              height={stats.maxHeight || stats.height}
               elapsedMs={elapsedMs}
               nickname={playerProfile.nickname}
               placement={stats.placement}
@@ -217,7 +244,7 @@ export default function GamePage() {
             />
 
             {recordMode && (
-              <LeaderboardModal mode={recordMode} playerId={playerId()} onClose={() => setRecordMode(null)} rulesVersion="endless" offline={backend.offline} />
+              <LeaderboardModal mode={recordMode} playerId={playerId()} onClose={() => setRecordMode(null)} rulesVersion={gameConfig?.isEndless ? 'endless' : (backend.config?.rules_version || 'v1')} offline={backend.offline} />
             )}
           </GameCanvas>
         </div>

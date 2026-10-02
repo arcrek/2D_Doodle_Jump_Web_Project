@@ -1,23 +1,23 @@
 /**
- * Synthetic Web Audio API Synthesizer & Procedural BGM for Doodle Jump
+ * Synthetic Web Audio API Synthesizer & Procedural Dual-Mode BGM for Doodle Jump
  * Zero external audio files required. All sounds and music generated mathematically.
  */
 
 // Musical Tuning & Frequencies (Equal Temperament)
 const NOTES = {
   // Octave 2
-  C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, B2: 123.47,
+  C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, Bb2: 116.54, B2: 123.47,
   // Octave 3
-  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08, B3: 246.94,
   // Octave 4
-  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16, B4: 493.88,
   // Octave 5
-  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, Bb5: 932.33, B5: 987.77,
   // Octave 6
   C6: 1046.50, D6: 1174.66, E6: 1318.51, F6: 1396.91, G6: 1567.98, A6: 1760.00, B6: 1975.53,
 };
 
-// 126 BPM Cheerful Doodle Jump Rhythm
+// 126 BPM Rhythm Clock (shared between Menu and Gameplay for sample-accurate crossfading)
 const BPM = 126;
 const SECONDS_PER_BEAT = 60 / BPM;
 const SIXTEENTH_TIME = SECONDS_PER_BEAT / 4; // ~0.119s per step
@@ -25,8 +25,11 @@ const TOTAL_STEPS = 128; // 8 measures of 16 steps
 const LOOKAHEAD_SEC = 0.12;
 const SCHEDULE_INTERVAL_MS = 35;
 
-// Walking sub-bass score (Steps 0 - 127)
-const BASS_SCORE = {
+// =============================================================================
+// TRACK 1: MENU THEME (Outside Main Gameplay - Whimsical, Sunny C Major, Laid-back)
+// =============================================================================
+
+const MENU_BASS_SCORE = {
   // Bar 0: C Major bouncy walk
   0: NOTES.C3, 4: NOTES.G2, 6: NOTES.C3, 8: NOTES.E3, 10: NOTES.G3, 12: NOTES.E3, 14: NOTES.B2,
   // Bar 1: A Minor
@@ -45,8 +48,7 @@ const BASS_SCORE = {
   112: NOTES.G2, 116: NOTES.D3, 118: NOTES.F3, 120: NOTES.G3, 122: NOTES.B2, 124: NOTES.D3, 126: NOTES.G2,
 };
 
-// Offbeat staccato bounce chords (ska/reggae style plucks)
-const CHORD_SCORE = {
+const MENU_CHORD_SCORE = {
   // Bar 0 (C)
   2: [NOTES.E4, NOTES.G4, NOTES.C5], 6: [NOTES.E4, NOTES.G4, NOTES.C5],
   10: [NOTES.E4, NOTES.G4, NOTES.C5], 14: [NOTES.E4, NOTES.G4, NOTES.C5],
@@ -73,8 +75,7 @@ const CHORD_SCORE = {
   122: [NOTES.F4, NOTES.G4, NOTES.B4], 126: [NOTES.F4, NOTES.G4, NOTES.B4],
 };
 
-// Catchy Marimba / Toy Bell lead melody
-const MELODY_SCORE = {
+const MENU_MELODY_SCORE = {
   // Bar 0 (C)
   0: { freq: NOTES.E5, len: 2 },
   2: { freq: NOTES.G5, len: 2 },
@@ -116,7 +117,7 @@ const MELODY_SCORE = {
   60: { freq: NOTES.B5, len: 2 },
   62: { freq: NOTES.D6, len: 2 },
 
-  // Bar 4 (C playful jump)
+  // Bar 4 (C)
   64: { freq: NOTES.E6, len: 2 },
   66: { freq: NOTES.D6, len: 2 },
   68: { freq: NOTES.C6, len: 2 },
@@ -146,7 +147,7 @@ const MELODY_SCORE = {
   108: { freq: NOTES.F6, len: 2 },
   110: { freq: NOTES.D6, len: 2 },
 
-  // Bar 7 (G7 flourish)
+  // Bar 7 (G7)
   112: { freq: NOTES.G6, len: 2 },
   114: { freq: NOTES.F6, len: 2 },
   116: { freq: NOTES.D6, len: 2 },
@@ -159,12 +160,153 @@ const MELODY_SCORE = {
   126: { freq: NOTES.B5, len: 2 },
 };
 
+// =============================================================================
+// TRACK 2: GAMEPLAY THEME (Active Main Gameplay - Sunny F Major, Bouncy, Soaring)
+// =============================================================================
+
+// Cartoon walking rubber bass in F Major (Steps 0 - 127)
+const GAMEPLAY_BASS_SCORE = {
+  // Bar 0: F Major - buoyant takeoff
+  0: NOTES.F2, 4: NOTES.C3, 6: NOTES.F2, 8: NOTES.A2, 10: NOTES.C3, 12: NOTES.D3, 14: NOTES.E2,
+  // Bar 1: C Major - joyful bounce
+  16: NOTES.C3, 20: NOTES.G2, 22: NOTES.C3, 24: NOTES.E3, 26: NOTES.G3, 28: NOTES.E3, 30: NOTES.C3,
+  // Bar 2: Bb Major - soaring sky
+  32: NOTES.Bb2, 36: NOTES.F2, 38: NOTES.Bb2, 40: NOTES.D3, 42: NOTES.F3, 44: NOTES.D3, 46: NOTES.Bb2,
+  // Bar 3: C7 - turnaround roll
+  48: NOTES.C3, 52: NOTES.G2, 54: NOTES.C3, 56: NOTES.E3, 58: NOTES.G3, 60: NOTES.Bb3, 62: NOTES.C3,
+  // Bar 4: F Major - high altitude climb
+  64: NOTES.F2, 68: NOTES.C3, 70: NOTES.F3, 72: NOTES.A2, 74: NOTES.C3, 76: NOTES.F3, 78: NOTES.C3,
+  // Bar 5: Dm -> G - playful sprint
+  80: NOTES.D3, 84: NOTES.A2, 86: NOTES.D3, 88: NOTES.G2, 90: NOTES.D3, 92: NOTES.G3, 94: NOTES.B2,
+  // Bar 6: Bb -> C - rising anticipation
+  96: NOTES.Bb2, 100: NOTES.F2, 102: NOTES.Bb2, 104: NOTES.C3, 106: NOTES.G2, 108: NOTES.C3, 110: NOTES.E3,
+  // Bar 7: C7 - joyful flourish resolving back to Bar 0
+  112: NOTES.C3, 116: NOTES.G2, 118: NOTES.Bb2, 120: NOTES.C3, 122: NOTES.E3, 124: NOTES.G3, 126: NOTES.C3,
+};
+
+// Playful offbeat staccato bounce chords (ska/marimba plucks on steps 2, 6, 10, 14)
+const GAMEPLAY_CHORD_SCORE = {
+  // Bar 0 (F)
+  2: [NOTES.A4, NOTES.C5, NOTES.F5], 6: [NOTES.A4, NOTES.C5, NOTES.F5],
+  10: [NOTES.A4, NOTES.C5, NOTES.F5], 14: [NOTES.A4, NOTES.C5, NOTES.F5],
+  // Bar 1 (C)
+  18: [NOTES.G4, NOTES.C5, NOTES.E5], 22: [NOTES.G4, NOTES.C5, NOTES.E5],
+  26: [NOTES.G4, NOTES.C5, NOTES.E5], 30: [NOTES.G4, NOTES.C5, NOTES.E5],
+  // Bar 2 (Bb)
+  34: [NOTES.F4, NOTES.Bb4, NOTES.D5], 38: [NOTES.F4, NOTES.Bb4, NOTES.D5],
+  42: [NOTES.F4, NOTES.Bb4, NOTES.D5], 46: [NOTES.F4, NOTES.Bb4, NOTES.D5],
+  // Bar 3 (C7)
+  50: [NOTES.G4, NOTES.Bb4, NOTES.E5], 54: [NOTES.G4, NOTES.Bb4, NOTES.E5],
+  58: [NOTES.G4, NOTES.Bb4, NOTES.E5], 62: [NOTES.G4, NOTES.Bb4, NOTES.E5],
+  // Bar 4 (F)
+  66: [NOTES.A4, NOTES.C5, NOTES.F5], 70: [NOTES.A4, NOTES.C5, NOTES.F5],
+  74: [NOTES.A4, NOTES.C5, NOTES.F5], 78: [NOTES.A4, NOTES.C5, NOTES.F5],
+  // Bar 5 (Dm -> G)
+  82: [NOTES.F4, NOTES.A4, NOTES.D5], 86: [NOTES.F4, NOTES.A4, NOTES.D5],
+  90: [NOTES.G4, NOTES.B4, NOTES.D5], 94: [NOTES.G4, NOTES.B4, NOTES.D5],
+  // Bar 6 (Bb -> C)
+  98: [NOTES.F4, NOTES.Bb4, NOTES.D5], 102: [NOTES.F4, NOTES.Bb4, NOTES.D5],
+  106: [NOTES.G4, NOTES.C5, NOTES.E5], 110: [NOTES.G4, NOTES.C5, NOTES.E5],
+  // Bar 7 (C7)
+  114: [NOTES.G4, NOTES.Bb4, NOTES.E5], 118: [NOTES.G4, NOTES.Bb4, NOTES.E5],
+  122: [NOTES.G4, NOTES.Bb4, NOTES.E5], 126: [NOTES.G4, NOTES.Bb4, NOTES.E5],
+};
+
+// Catchy, whistling marimba lead melody (Sunny, soaring, full of joyful leaps!)
+const GAMEPLAY_MELODY_SCORE = {
+  // Bar 0 (F Major - playful jump takeoff)
+  0: { freq: NOTES.A5, len: 2 },
+  2: { freq: NOTES.C6, len: 2 },
+  4: { freq: NOTES.F6, len: 2 },
+  7: { freq: NOTES.C6, len: 1 },
+  8: { freq: NOTES.A5, len: 2 },
+  10: { freq: NOTES.G5, len: 1 },
+  11: { freq: NOTES.A5, len: 1 },
+  12: { freq: NOTES.C6, len: 2 },
+  14: { freq: NOTES.D6, len: 2 },
+
+  // Bar 1 (C Major - skipping bounce)
+  16: { freq: NOTES.E6, len: 2 },
+  18: { freq: NOTES.D6, len: 2 },
+  20: { freq: NOTES.C6, len: 2 },
+  23: { freq: NOTES.G5, len: 1 },
+  24: { freq: NOTES.A5, len: 2 },
+  26: { freq: NOTES.C6, len: 2 },
+  28: { freq: NOTES.D6, len: 2 },
+  30: { freq: NOTES.C6, len: 2 },
+
+  // Bar 2 (Bb Major - soaring climb into the clouds)
+  32: { freq: NOTES.D6, len: 2 },
+  34: { freq: NOTES.F6, len: 2 },
+  36: { freq: NOTES.G6, len: 2 },
+  39: { freq: NOTES.F6, len: 1 },
+  40: { freq: NOTES.D6, len: 2 },
+  42: { freq: NOTES.Bb5, len: 2 },
+  44: { freq: NOTES.C6, len: 2 },
+  46: { freq: NOTES.D6, len: 2 },
+
+  // Bar 3 (C7 - bouncy roll)
+  48: { freq: NOTES.E6, len: 2 },
+  50: { freq: NOTES.C6, len: 2 },
+  52: { freq: NOTES.G6, len: 2 },
+  55: { freq: NOTES.E6, len: 1 },
+  56: { freq: NOTES.C6, len: 2 },
+  58: { freq: NOTES.D6, len: 2 },
+  60: { freq: NOTES.E6, len: 2 },
+  62: { freq: NOTES.G6, len: 2 },
+
+  // Bar 4 (F Major - high altitude sprint)
+  64: { freq: NOTES.A6, len: 2 },
+  66: { freq: NOTES.F6, len: 2 },
+  68: { freq: NOTES.C6, len: 2 },
+  71: { freq: NOTES.D6, len: 1 },
+  72: { freq: NOTES.F6, len: 2 },
+  74: { freq: NOTES.A6, len: 2 },
+  76: { freq: NOTES.G6, len: 2 },
+  78: { freq: NOTES.F6, len: 2 },
+
+  // Bar 5 (Dm -> G - playful detour)
+  80: { freq: NOTES.F6, len: 2 },
+  82: { freq: NOTES.D6, len: 2 },
+  84: { freq: NOTES.A5, len: 2 },
+  87: { freq: NOTES.B5, len: 1 },
+  88: { freq: NOTES.D6, len: 2 },
+  90: { freq: NOTES.G6, len: 2 },
+  92: { freq: NOTES.F6, len: 2 },
+  94: { freq: NOTES.D6, len: 2 },
+
+  // Bar 6 (Bb -> C - rising summit)
+  96: { freq: NOTES.D6, len: 2 },
+  98: { freq: NOTES.F6, len: 2 },
+  100: { freq: NOTES.G6, len: 2 },
+  103: { freq: NOTES.A6, len: 1 },
+  104: { freq: NOTES.G6, len: 2 },
+  106: { freq: NOTES.E6, len: 2 },
+  108: { freq: NOTES.C6, len: 2 },
+  110: { freq: NOTES.D6, len: 2 },
+
+  // Bar 7 (C7 - joyful cartoon flourish turnaround)
+  112: { freq: NOTES.E6, len: 2 },
+  114: { freq: NOTES.G6, len: 2 },
+  116: { freq: NOTES.E6, len: 2 },
+  118: { freq: NOTES.C6, len: 2 },
+  120: { freq: NOTES.Bb5, len: 1 },
+  121: { freq: NOTES.C6, len: 1 },
+  122: { freq: NOTES.D6, len: 1 },
+  123: { freq: NOTES.E6, len: 1 },
+  124: { freq: NOTES.G6, len: 2 },
+  126: { freq: NOTES.C6, len: 2 },
+};
+
 class SoundEngine {
   constructor() {
     this.ctx = null;
     this.enabled = true;
-    this.bgmVolume = 0.12;
+    this.bgmVolume = 0.11;
     this.bgmGain = null;
+    this.menuGain = null;
+    this.gameplayGain = null;
+    this.bgmMode = 'menu'; // 'menu' (outside gameplay) | 'gameplay' (active race)
     this.noiseBuffer = null;
     this.bgmPlaying = false;
     this.schedulerTimer = null;
@@ -172,7 +314,12 @@ class SoundEngine {
     this.nextStepTime = 0;
     this.lastBotBounceTime = 0;
 
-    // Auto-unlock audio and resume BGM on first user interaction in browser
+    // UI interactive sound tracking
+    this.lastHoveredTarget = null;
+    this.lastHoverTime = 0;
+    this.lastClickTime = 0;
+
+    // Setup global listeners in browser environment
     if (typeof window !== 'undefined') {
       const unlockInteraction = () => {
         if (!this.enabled) return;
@@ -189,6 +336,7 @@ class SoundEngine {
       window.addEventListener('keydown', unlockInteraction, { passive: true });
       window.addEventListener('touchstart', unlockInteraction, { passive: true });
 
+      // Tab visibility management (pause/resume audio context)
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
           if (document.hidden) {
@@ -201,6 +349,75 @@ class SoundEngine {
             }
           }
         });
+
+        // Global delegate for soft tactile button hover and click sounds
+        const isInteractive = (el) => {
+          if (!el || !el.closest) return null;
+          return el.closest(
+            'button, [role="button"], .btn, .doodle-menu-toggle, .skin-card, .btn-primary, .btn-secondary, a, input[type="submit"], input[type="button"]'
+          );
+        };
+
+        // Pointer hover sound
+        document.addEventListener('pointerover', (e) => {
+          const target = isInteractive(e.target);
+          if (!target) {
+            this.lastHoveredTarget = null;
+            return;
+          }
+          if (this.lastHoveredTarget === target) return;
+          this.lastHoveredTarget = target;
+
+          const now = Date.now();
+          if (now - this.lastHoverTime < 35) return; // throttle rapid sweeps
+          this.lastHoverTime = now;
+
+          this.playButtonHover();
+        }, { passive: true, capture: true });
+
+        // Canvas start button hover detection
+        document.addEventListener('pointermove', (e) => {
+          if (e.target && e.target.tagName === 'CANVAS') {
+            if (e.target.style && e.target.style.cursor === 'pointer') {
+              if (this.lastHoveredTarget !== 'canvas-btn') {
+                this.lastHoveredTarget = 'canvas-btn';
+                const now = Date.now();
+                if (now - this.lastHoverTime >= 35) {
+                  this.lastHoverTime = now;
+                  this.playButtonHover();
+                }
+              }
+              return;
+            }
+          }
+          if (this.lastHoveredTarget === 'canvas-btn') {
+            this.lastHoveredTarget = null;
+          }
+        }, { passive: true });
+
+        // Pointer click sound
+        document.addEventListener('pointerdown', (e) => {
+          const target = isInteractive(e.target);
+          if (target) {
+            const now = Date.now();
+            if (now - this.lastClickTime < 50) return;
+            this.lastClickTime = now;
+            this.playButtonClick();
+
+            // Handle UI button transitions (Pause, Resume, Menu, Restart)
+            const text = (target.textContent || '').toLowerCase();
+            const className = String(target.className || '');
+            if (className.includes('restart') || text.includes('chơi lại')) {
+              this.switchBGM('menu', 0.25);
+            } else if (className.includes('menu') || text.includes('tiêu đề') || text.includes('thoát')) {
+              this.switchBGM('menu', 0.4);
+            } else if (className.includes('pause') || text.includes('tạm dừng')) {
+              this.switchBGM('menu', 0.4);
+            } else if (text.includes('tiếp tục')) {
+              this.switchBGM('gameplay', 0.4);
+            }
+          }
+        }, { passive: true, capture: true });
       }
     }
   }
@@ -218,6 +435,18 @@ class SoundEngine {
         this.bgmGain = this.ctx.createGain();
         this.bgmGain.gain.setValueAtTime(this.bgmVolume, this.ctx.currentTime);
         this.bgmGain.connect(this.ctx.destination);
+      }
+
+      if (!this.menuGain) {
+        this.menuGain = this.ctx.createGain();
+        this.menuGain.gain.setValueAtTime(this.bgmMode === 'menu' ? 1.0 : 0.001, this.ctx.currentTime);
+        this.menuGain.connect(this.bgmGain);
+      }
+
+      if (!this.gameplayGain) {
+        this.gameplayGain = this.ctx.createGain();
+        this.gameplayGain.gain.setValueAtTime(this.bgmMode === 'gameplay' ? 1.0 : 0.001, this.ctx.currentTime);
+        this.gameplayGain.connect(this.bgmGain);
       }
 
       if (!this.noiseBuffer) {
@@ -258,9 +487,152 @@ class SoundEngine {
     return this.bgmPlaying;
   }
 
+  getBGMMode() {
+    return this.bgmMode;
+  }
+
+  setBGMMode(mode) {
+    this.switchBGM(mode, 0.4);
+  }
+
   // =========================================================================
-  // PROCEDURAL BGM ENGINE (Web Audio Clock Scheduling)
+  // INTERACTIVE BUTTON SOUND EFFECTS (Soft & Tactile)
   // =========================================================================
+
+  // Soft marimba / bubble pop on button hover
+  playButtonHover() {
+    if (!this.enabled) return;
+    this.ensureContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(740, now);
+      osc.frequency.exponentialRampToValueAtTime(540, now + 0.035);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2200, now);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.046, now + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.04);
+      osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
+    } catch (_) {}
+  }
+
+  playHover() {
+    this.playButtonHover();
+  }
+
+  // Soft tactile mechanical switch / wooden click on button press
+  playButtonClick() {
+    if (!this.enabled) return;
+    this.ensureContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+
+      // Layer 1: Tactile snap transient (ultra-short high triangle)
+      const snapOsc = this.ctx.createOscillator();
+      const snapGain = this.ctx.createGain();
+      snapOsc.type = 'triangle';
+      snapOsc.frequency.setValueAtTime(1500, now);
+      snapOsc.frequency.exponentialRampToValueAtTime(700, now + 0.015);
+      snapGain.gain.setValueAtTime(0.065, now);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.016);
+      snapOsc.connect(snapGain);
+      snapGain.connect(this.ctx.destination);
+      snapOsc.start(now);
+      snapOsc.stop(now + 0.02);
+      snapOsc.onended = () => { snapOsc.disconnect(); snapGain.disconnect(); };
+
+      // Layer 2: Warm wooden acoustic body (low sine drop)
+      const bodyOsc = this.ctx.createOscillator();
+      const bodyGain = this.ctx.createGain();
+      bodyOsc.type = 'sine';
+      bodyOsc.frequency.setValueAtTime(390, now);
+      bodyOsc.frequency.exponentialRampToValueAtTime(160, now + 0.045);
+      bodyGain.gain.setValueAtTime(0.088, now);
+      bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+      bodyOsc.connect(bodyGain);
+      bodyGain.connect(this.ctx.destination);
+      bodyOsc.start(now);
+      bodyOsc.stop(now + 0.05);
+      bodyOsc.onended = () => { bodyOsc.disconnect(); bodyGain.disconnect(); };
+
+      // Layer 3: Subtle tactile noise tap
+      if (this.noiseBuffer) {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1400, now);
+        filter.Q.setValueAtTime(3.5, now);
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.038, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.02);
+        noise.onended = () => { noise.disconnect(); filter.disconnect(); noiseGain.disconnect(); };
+      }
+    } catch (_) {}
+  }
+
+  playClick() {
+    this.playButtonClick();
+  }
+
+  // =========================================================================
+  // PROCEDURAL DUAL-MODE BGM ENGINE (Web Audio Clock Scheduling & Crossfade)
+  // =========================================================================
+
+  // Smooth crossfade switch between Menu Theme and Gameplay Theme
+  switchBGM(newMode, fadeDuration = 0.5) {
+    if (!this.ctx) {
+      this.bgmMode = newMode;
+      return;
+    }
+
+    this.ensureContext();
+    if (this.bgmMode === newMode && this.bgmPlaying) return;
+    this.bgmMode = newMode;
+
+    if (!this.bgmPlaying && this.enabled) {
+      this.startBGM();
+    }
+
+    if (!this.menuGain || !this.gameplayGain) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const targetMenu = newMode === 'menu' ? 1.0 : 0.001;
+      const targetGameplay = newMode === 'gameplay' ? 1.0 : 0.001;
+
+      this.menuGain.gain.cancelScheduledValues(now);
+      this.menuGain.gain.setValueAtTime(this.menuGain.gain.value, now);
+      this.menuGain.gain.linearRampToValueAtTime(targetMenu, now + fadeDuration);
+
+      this.gameplayGain.gain.cancelScheduledValues(now);
+      this.gameplayGain.gain.setValueAtTime(this.gameplayGain.gain.value, now);
+      this.gameplayGain.gain.linearRampToValueAtTime(targetGameplay, now + fadeDuration);
+    } catch (_) {}
+  }
 
   startBGM() {
     if (!this.enabled) return;
@@ -274,12 +646,20 @@ class SoundEngine {
     this.nextStepTime = now + 0.05;
     this.currentStep = 0;
 
-    // Smooth fade in to avoid abrupt clicks
+    // Smooth master fade in
     if (this.bgmGain) {
       try {
         this.bgmGain.gain.cancelScheduledValues(now);
         this.bgmGain.gain.setValueAtTime(0.001, now);
         this.bgmGain.gain.linearRampToValueAtTime(this.bgmVolume, now + 0.35);
+      } catch (_) {}
+    }
+
+    // Set initial gains based on current mode
+    if (this.menuGain && this.gameplayGain) {
+      try {
+        this.menuGain.gain.setValueAtTime(this.bgmMode === 'menu' ? 1.0 : 0.001, now);
+        this.gameplayGain.gain.setValueAtTime(this.bgmMode === 'gameplay' ? 1.0 : 0.001, now);
       } catch (_) {}
     }
 
@@ -347,168 +727,168 @@ class SoundEngine {
   scheduleStep(step, time) {
     if (!this.ctx || !this.bgmGain) return;
 
-    // 1. Walking Bassline
-    const bassNote = BASS_SCORE[step];
-    if (bassNote) {
-      this.playBass(bassNote, time);
+    const isMenuAudible = this.menuGain && this.menuGain.gain.value > 0.005;
+    const isGameplayAudible = this.gameplayGain && this.gameplayGain.gain.value > 0.005;
+
+    // =========================================================================
+    // 1. SCHEDULE MENU THEME (Outside Gameplay)
+    // =========================================================================
+    if (isMenuAudible) {
+      // Menu Bass
+      const bassNote = MENU_BASS_SCORE[step];
+      if (bassNote) this.playMenuBass(bassNote, time);
+
+      // Menu Chords
+      const chord = MENU_CHORD_SCORE[step];
+      if (chord) this.playMenuChord(chord, time);
+
+      // Menu Melody
+      const melody = MENU_MELODY_SCORE[step];
+      if (melody) this.playMenuMelody(melody.freq, melody.len, time);
+
+      // Menu Percussion (Downbeat woodblock, rim on 4/12, light shaker)
+      const stepInBar = step % 16;
+      if (stepInBar === 0 || stepInBar === 8) this.playMenuKick(time);
+      if (stepInBar === 4 || stepInBar === 12) this.playMenuRim(time);
+      if (stepInBar === 2 || stepInBar === 6 || stepInBar === 10 || stepInBar === 14) this.playMenuShaker(time);
+      if (step === 61 || step === 62 || step === 63 || step === 125 || step === 126 || step === 127) {
+        this.playMenuRim(time, 0.04);
+      }
     }
 
-    // 2. Off-beat Staccato Chords
-    const chord = CHORD_SCORE[step];
-    if (chord) {
-      this.playChord(chord, time);
-    }
+    // =========================================================================
+    // 2. SCHEDULE GAMEPLAY THEME (Active Main Gameplay - Sunny F Major Bouncy)
+    // =========================================================================
+    if (isGameplayAudible) {
+      // Bouncy Rubber Upright Bass
+      const gpBass = GAMEPLAY_BASS_SCORE[step];
+      if (gpBass) this.playGameplayBass(gpBass, time);
 
-    // 3. Catchy Lead Melody
-    const melody = MELODY_SCORE[step];
-    if (melody) {
-      this.playMelody(melody.freq, melody.len, time);
-    }
+      // Offbeat Marimba Pluck Chords (bouncy ska skank)
+      const gpChord = GAMEPLAY_CHORD_SCORE[step];
+      if (gpChord) this.playGameplayChord(gpChord, time);
 
-    // 4. Cheerful Percussion (Woodblock, Rim, Shaker)
-    const stepInBar = step % 16;
+      // Catchy Whistling Lead Melody
+      const gpMelody = GAMEPLAY_MELODY_SCORE[step];
+      if (gpMelody) this.playGameplayMelody(gpMelody.freq, gpMelody.len, time);
 
-    // Woodblock kick on downbeats 0 and 8
-    if (stepInBar === 0 || stepInBar === 8) {
-      this.playKick(time);
-    }
-
-    // Snappy rim / woodblock pop on beats 4 and 12
-    if (stepInBar === 4 || stepInBar === 12) {
-      this.playRim(time);
-    }
-
-    // Light gentle shaker on eighth offbeats
-    if (stepInBar === 2 || stepInBar === 6 || stepInBar === 10 || stepInBar === 14) {
-      this.playShaker(time);
-    }
-
-    // Playful drum roll fills on measures 4 and 8
-    if (step === 61 || step === 62 || step === 63 || step === 125 || step === 126 || step === 127) {
-      this.playRim(time, 0.04);
+      // Light Groovy Percussion (Woodblock downbeat, rim on 4/12, light shaker)
+      const stepInBar = step % 16;
+      if (stepInBar === 0 || stepInBar === 8) {
+        this.playGameplayKick(time);
+      }
+      if (stepInBar === 4 || stepInBar === 12) {
+        this.playGameplayRim(time, 0.07);
+      }
+      if (stepInBar === 2 || stepInBar === 6 || stepInBar === 10 || stepInBar === 14) {
+        this.playGameplayShaker(time);
+      }
+      // Drum fills at ends of measure 4 and 8
+      if (step === 61 || step === 62 || step === 63 || step === 125 || step === 126 || step === 127) {
+        this.playGameplayRim(time, 0.045);
+      }
     }
   }
 
-  // Soft punchy kick / bongo drop
-  playKick(time) {
-    if (!this.ctx || !this.bgmGain) return;
+  // =========================================================================
+  // MENU THEME INSTRUMENTS
+  // =========================================================================
+
+  playMenuKick(time) {
+    if (!this.ctx || !this.menuGain) return;
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(140, time);
       osc.frequency.exponentialRampToValueAtTime(42, time + 0.065);
-
       gain.gain.setValueAtTime(0.09, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.065);
-
       osc.connect(gain);
-      gain.connect(this.bgmGain);
-
+      gain.connect(this.menuGain);
       osc.start(time);
       osc.stop(time + 0.07);
       osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     } catch (_) {}
   }
 
-  // Snappy woodblock / rim pop
-  playRim(time, customGain = 0.07) {
-    if (!this.ctx || !this.bgmGain) return;
+  playMenuRim(time, customGain = 0.07) {
+    if (!this.ctx || !this.menuGain) return;
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(540, time);
       osc.frequency.exponentialRampToValueAtTime(260, time + 0.045);
-
       gain.gain.setValueAtTime(customGain, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
-
       osc.connect(gain);
-      gain.connect(this.bgmGain);
-
+      gain.connect(this.menuGain);
       osc.start(time);
       osc.stop(time + 0.05);
       osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     } catch (_) {}
   }
 
-  // Subtle filtered white noise shaker
-  playShaker(time) {
-    if (!this.ctx || !this.bgmGain || !this.noiseBuffer) return;
+  playMenuShaker(time) {
+    if (!this.ctx || !this.menuGain || !this.noiseBuffer) return;
     try {
       const noise = this.ctx.createBufferSource();
       noise.buffer = this.noiseBuffer;
-
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'highpass';
       filter.frequency.setValueAtTime(5500, time);
-
       const gain = this.ctx.createGain();
       gain.gain.setValueAtTime(0.024, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.025);
-
       noise.connect(filter);
       filter.connect(gain);
-      gain.connect(this.bgmGain);
-
+      gain.connect(this.menuGain);
       noise.start(time);
       noise.stop(time + 0.03);
       noise.onended = () => { noise.disconnect(); filter.disconnect(); gain.disconnect(); };
     } catch (_) {}
   }
 
-  // Warm walking bass note
-  playBass(freq, time) {
-    if (!this.ctx || !this.bgmGain) return;
+  playMenuBass(freq, time) {
+    if (!this.ctx || !this.menuGain) return;
     try {
       const osc = this.ctx.createOscillator();
       const filter = this.ctx.createBiquadFilter();
       const gain = this.ctx.createGain();
-
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, time);
-
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(420, time);
-
       gain.gain.setValueAtTime(0.001, time);
       gain.gain.linearRampToValueAtTime(0.13, time + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
-
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.bgmGain);
-
+      gain.connect(this.menuGain);
       osc.start(time);
       osc.stop(time + 0.17);
       osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
     } catch (_) {}
   }
 
-  // Light staccato off-beat pluck chords
-  playChord(frequencies, time) {
-    if (!this.ctx || !this.bgmGain) return;
+  playMenuChord(frequencies, time) {
+    if (!this.ctx || !this.menuGain) return;
     try {
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(1600, time);
-      filter.connect(this.bgmGain);
-
+      filter.connect(this.menuGain);
       frequencies.forEach(freq => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, time);
-
         gain.gain.setValueAtTime(0.001, time);
         gain.gain.linearRampToValueAtTime(0.032, time + 0.008);
         gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
-
         osc.connect(gain);
         gain.connect(filter);
-
         osc.start(time);
         osc.stop(time + 0.10);
         osc.onended = () => { osc.disconnect(); gain.disconnect(); };
@@ -516,12 +896,10 @@ class SoundEngine {
     } catch (_) {}
   }
 
-  // Bright marimba / toy bell melody
-  playMelody(freq, stepDuration, time) {
-    if (!this.ctx || !this.bgmGain) return;
+  playMenuMelody(freq, stepDuration, time) {
+    if (!this.ctx || !this.menuGain) return;
     try {
       const durationSec = stepDuration * SIXTEENTH_TIME * 0.92;
-
       const osc = this.ctx.createOscillator();
       const oscOvertone = this.ctx.createOscillator();
       const filter = this.ctx.createBiquadFilter();
@@ -549,7 +927,7 @@ class SoundEngine {
       osc.connect(filter);
       oscOvertone.connect(filter);
       filter.connect(gain);
-      gain.connect(this.bgmGain);
+      gain.connect(this.menuGain);
 
       osc.start(time);
       oscOvertone.start(time);
@@ -566,14 +944,173 @@ class SoundEngine {
   }
 
   // =========================================================================
-  // SOUND EFFECTS
+  // GAMEPLAY THEME INSTRUMENTS (Warm, Bouncy, Joyful F Major)
   // =========================================================================
 
-  // Soft wind whoosh during camera descent
+  playGameplayKick(time) {
+    if (!this.ctx || !this.gameplayGain) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, time);
+      osc.frequency.exponentialRampToValueAtTime(42, time + 0.060);
+      gain.gain.setValueAtTime(0.088, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.060);
+      osc.connect(gain);
+      gain.connect(this.gameplayGain);
+      osc.start(time);
+      osc.stop(time + 0.065);
+      osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+    } catch (_) {}
+  }
+
+  playGameplayRim(time, customGain = 0.07) {
+    if (!this.ctx || !this.gameplayGain) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(540, time);
+      osc.frequency.exponentialRampToValueAtTime(260, time + 0.045);
+      gain.gain.setValueAtTime(customGain, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
+      osc.connect(gain);
+      gain.connect(this.gameplayGain);
+      osc.start(time);
+      osc.stop(time + 0.05);
+      osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+    } catch (_) {}
+  }
+
+  playGameplayShaker(time) {
+    if (!this.ctx || !this.gameplayGain || !this.noiseBuffer) return;
+    try {
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = this.noiseBuffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.setValueAtTime(5600, time);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.024, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.022);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.gameplayGain);
+      noise.start(time);
+      noise.stop(time + 0.025);
+      noise.onended = () => { noise.disconnect(); filter.disconnect(); gain.disconnect(); };
+    } catch (_) {}
+  }
+
+  playGameplayBass(freq, time) {
+    if (!this.ctx || !this.gameplayGain) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(420, time);
+
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.linearRampToValueAtTime(0.125, time + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.gameplayGain);
+
+      osc.start(time);
+      osc.stop(time + 0.17);
+      osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
+    } catch (_) {}
+  }
+
+  playGameplayChord(frequencies, time) {
+    if (!this.ctx || !this.gameplayGain) return;
+    try {
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1600, time);
+      filter.connect(this.gameplayGain);
+
+      frequencies.forEach(freq => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0.001, time);
+        gain.gain.linearRampToValueAtTime(0.032, time + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+        osc.connect(gain);
+        gain.connect(filter);
+        osc.start(time);
+        osc.stop(time + 0.10);
+        osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+      });
+    } catch (_) {}
+  }
+
+  playGameplayMelody(freq, stepDuration, time) {
+    if (!this.ctx || !this.gameplayGain) return;
+    try {
+      const durationSec = stepDuration * SIXTEENTH_TIME * 0.92;
+      const osc = this.ctx.createOscillator();
+      const oscOvertone = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+      const gainOvertone = this.ctx.createGain();
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2400, time);
+      filter.Q.setValueAtTime(1.8, time);
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      oscOvertone.type = 'sine';
+      oscOvertone.frequency.setValueAtTime(freq * 2, time);
+
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.linearRampToValueAtTime(0.076, time + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + durationSec);
+
+      gainOvertone.gain.setValueAtTime(0.001, time);
+      gainOvertone.gain.linearRampToValueAtTime(0.020, time + 0.006);
+      gainOvertone.gain.exponentialRampToValueAtTime(0.001, time + durationSec * 0.6);
+
+      osc.connect(filter);
+      oscOvertone.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.gameplayGain);
+
+      osc.start(time);
+      oscOvertone.start(time);
+      osc.stop(time + durationSec + 0.01);
+      oscOvertone.stop(time + durationSec + 0.01);
+
+      osc.onended = () => {
+        osc.disconnect();
+        oscOvertone.disconnect();
+        filter.disconnect();
+        gain.disconnect();
+      };
+    } catch (_) {}
+  }
+
+  // =========================================================================
+  // SOUND EFFECTS & CINEMATIC TRANSITIONS
+  // =========================================================================
+
+  // Soft wind whoosh during camera descent (Transitions to Menu Theme)
   playWhoosh(duration = 1.2) {
     if (!this.enabled) return;
     this.ensureContext();
-    this.startBGM();
+    this.switchBGM('menu', 0.4);
     if (!this.ctx) return;
 
     try {
@@ -634,11 +1171,11 @@ class SoundEngine {
     } catch (_) {}
   }
 
-  // Powerful launch bounce chord when game starts
+  // Launch bounce chord - seamlessly triggers Gameplay Theme!
   playLaunch() {
     if (!this.enabled) return;
     this.ensureContext();
-    this.startBGM();
+    this.switchBGM('gameplay', 0.5);
     if (!this.ctx) return;
 
     try {
@@ -667,7 +1204,7 @@ class SoundEngine {
   playWipe() {
     if (!this.enabled) return;
     this.ensureContext();
-    this.startBGM();
+    this.switchBGM('menu', 0.3);
     if (!this.ctx) return;
 
     try {
@@ -691,16 +1228,11 @@ class SoundEngine {
     } catch (_) {}
   }
 
-  // Subtle game over tone with BGM fadeout
+  // Subtle game over tone with smooth transition to Menu Theme
   playGameOver() {
     if (!this.enabled) return;
     this.ensureContext();
-    this.fadeBGM(0.001, 0.45);
-    setTimeout(() => {
-      if (!this.enabled || (this.ctx && this.bgmGain && this.bgmGain.gain.value < 0.01)) {
-        this.pauseBGM();
-      }
-    }, 500);
+    this.switchBGM('menu', 0.6);
 
     if (!this.ctx) return;
 
@@ -871,7 +1403,6 @@ class SoundEngine {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
-      // Pan between -0.85 (left) and +0.85 (right)
       const pan = Math.max(-0.85, Math.min(0.85, (normalizedX - 0.5) * 1.7));
       let outputNode = this.ctx.destination;
 
@@ -889,7 +1420,6 @@ class SoundEngine {
         gain.gain.setValueAtTime(0.07, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
       } else {
-        // Softer wooden hop tap for bot
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(420, now);
         osc.frequency.exponentialRampToValueAtTime(320, now + 0.06);

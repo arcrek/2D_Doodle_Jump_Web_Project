@@ -52,10 +52,18 @@ export function finish(state, reason) {
   state.finished = true;
   state.reason = reason;
   const ranking = getRanking(state.player, state.bots);
+  const isEndless = Boolean(state.config.isEndless || state.config.finish_height == null);
+  const finishHeight = state.config.finish_height ?? 3000;
+  const height = Math.floor(state.maxHeight || state.player.progress);
+  const outcome = (!isEndless && (reason === 'goal' || height >= finishHeight)) ? 'finished' : 'dnf';
+  const elapsed = Math.round(state.elapsedMs);
+  const validElapsed = isEndless
+    ? Math.max(1, elapsed)
+    : Math.max(1, Math.min(state.config.max_duration_ms ?? 180000, elapsed));
   state.result = {
-    height: Math.floor(state.player.progress),
-    elapsed_ms: Math.max(1, state.config.max_duration_ms ? Math.min(state.config.max_duration_ms, Math.round(state.elapsedMs)) : Math.round(state.elapsedMs)),
-    outcome: reason === 'goal' ? 'finished' : 'dnf',
+    height,
+    elapsed_ms: validElapsed,
+    outcome,
     placement: ranking.findIndex((item) => item.id === 'player') + 1,
   };
 }
@@ -63,7 +71,8 @@ export function finish(state, reason) {
 export function step(state, dt, direction) {
   if (state.finished) return;
   const { player, world, config, bots } = state;
-  state.elapsedMs = config.max_duration_ms ? Math.min(config.max_duration_ms, state.elapsedMs + dt * 1000) : (state.elapsedMs + dt * 1000);
+  const isEndless = Boolean(config.isEndless || config.finish_height == null);
+  state.elapsedMs = isEndless ? (state.elapsedMs + dt * 1000) : Math.min(config.max_duration_ms ?? 180000, state.elapsedMs + dt * 1000);
 
   // Sinh bệ đón đầu theo đối tượng cao nhất (Player hoặc Bot dẫn đầu)
   let highestEntityY = player.y;
@@ -80,9 +89,8 @@ export function step(state, dt, direction) {
   applyPhysics(player, dt);
   handlePlatformCollisions(player, world.platforms);
 
-  player.progress = typeof config.finish_height === 'number'
-    ? Math.min(config.finish_height, Math.max(player.progress, 388 - player.y))
-    : Math.max(player.progress, 388 - player.y);
+  const playerHeight = Math.max(0, 388 - player.y);
+  player.progress = isEndless ? Math.max(player.progress, playerHeight) : Math.min(config.finish_height, Math.max(player.progress, playerHeight));
   state.maxHeight = Math.max(state.maxHeight, player.progress);
   world.cameraY = Math.min(world.cameraY, player.y - 210);
 
@@ -106,12 +114,10 @@ export function step(state, dt, direction) {
 
     // Cập nhật tiến độ độ cao bot leo được
     const botProgress = Math.max(0, Math.round(388 - bot.y));
-    bot.progress = typeof config.finish_height === 'number'
-      ? Math.min(config.finish_height, Math.max(bot.progress, botProgress))
-      : Math.max(bot.progress, botProgress);
+    bot.progress = isEndless ? Math.max(bot.progress, botProgress) : Math.min(config.finish_height, Math.max(bot.progress, botProgress));
 
     // Đạt đích hoặc rơi vực
-    if (typeof config.finish_height === 'number' && bot.progress >= config.finish_height) {
+    if (!isEndless && config.finish_height && bot.progress >= config.finish_height) {
       bot.finishedAt = state.elapsedMs;
     } else if (bot.y - world.cameraY > SCREEN_HEIGHT + bot.height + 60) {
       bot.isDead = true;
@@ -119,12 +125,12 @@ export function step(state, dt, direction) {
   }
 
   // Kiểm tra điều kiện kết thúc của Player
-  if (typeof config.finish_height === 'number' && player.progress >= config.finish_height) {
+  if (!isEndless && config.finish_height && player.progress >= config.finish_height) {
     player.finishedAt = state.elapsedMs;
     finish(state, 'goal');
   } else if (player.y - world.cameraY > SCREEN_HEIGHT + player.height) {
     finish(state, 'fall');
-  } else if (typeof config.max_duration_ms === 'number' && state.elapsedMs >= config.max_duration_ms) {
+  } else if (!isEndless && config.max_duration_ms && state.elapsedMs >= config.max_duration_ms) {
     finish(state, 'timeout');
   }
 }

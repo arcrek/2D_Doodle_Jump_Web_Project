@@ -211,7 +211,7 @@ export function createGame(canvas, config, {
   let settleStartTime = null;        // Mốc thời gian dừng lại sau khi trượt tới đất
   let entranceStartTime = null;      // Mốc thời gian nhân vật bắt đầu nhảy vào sân
   let revealStartTime = null;        // Mốc thời gian bắt đầu hiện các bệ đỡ xung quanh
-  let nextBotIndex = 0;              // Chỉ số của Bot tiếp theo sẽ vào sân (0..3)
+  let nextBotIndex = enableIntro ? 0 : BOT_JOIN_TIMES_MS.length; // Chỉ số của Bot tiếp theo sẽ vào sân (0..3)
   let warmupStartTime = null;        // Mốc thời gian bắt đầu nhún nhảy nhẹ khởi động
   let returnStartTime = null;        // Mốc thời gian bắt đầu trượt ngược lên trời
   let returnFromY = 0;               // Tọa độ camera lúc bấm quay về tiêu đề
@@ -262,7 +262,12 @@ export function createGame(canvas, config, {
     isGameOver = true;
     soundManager.stopBGM();
 
-    const outcome = reason === 'goal' ? 'finished' : 'dnf';
+    const isEndless = Boolean(config?.isEndless || config?.finish_height == null);
+    const finishHeight = config?.finish_height ?? 3000;
+    const outcome = (!isEndless && (reason === 'goal' || maxHeight >= finishHeight)) ? 'finished' : 'dnf';
+    if (!isEndless && typeof config?.finish_height === 'number') {
+      maxHeight = Math.min(config.finish_height, maxHeight);
+    }
     publishStats(time);
 
     const ranking = getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots);
@@ -272,12 +277,17 @@ export function createGame(canvas, config, {
     if (outcome === 'finished') sound.playLaunch();
     else sound.playGameOver();
 
+    const elapsed = Math.round(elapsedMs);
+    const validElapsed = isEndless
+      ? Math.max(1, elapsed)
+      : Math.max(1, Math.min(config?.max_duration_ms ?? 180000, elapsed));
+
     // Báo kết quả cuối cùng cho React Page lưu vào Backend SQLite
     onGameOver?.({
       finalHeight: maxHeight,
       finalMaxHeight: maxHeight,
-      elapsedMs: Math.max(1, Math.round(elapsedMs)),
-      placement: ranking.findIndex(item => item.id === 'player') + 1,
+      elapsedMs: validElapsed,
+      placement: Math.max(1, Math.min(5, ranking.findIndex(item => item.id === 'player') + 1)),
       outcome,
       reason,
       ranking
@@ -820,9 +830,14 @@ export function createGame(canvas, config, {
       }
 
       // 9. Kiểm tra các điều kiện kết thúc ván đấu:
-      // Trong chế độ Endless, không có vạch đích 3000m hay giới hạn thời gian 180s. Game kết thúc khi bị Dung nham nuốt chửng.
-      // Trường hợp dự phòng nếu không có Dung nham: rơi khỏi đáy màn hình
-      if (!state.world?.lava && state.player.y - state.world.cameraY > canvas.height + state.player.height) {
+      const isEndless = Boolean(config?.isEndless || config?.finish_height == null);
+      if (!isEndless && typeof config?.finish_height === 'number' && maxHeight >= config.finish_height) {
+        endRun('goal', time);
+      }
+      else if (!isEndless && typeof config?.max_duration_ms === 'number' && elapsedMs >= config.max_duration_ms) {
+        endRun('timeout', time);
+      }
+      else if (!state.world?.lava && state.player.y - state.world.cameraY > canvas.height + state.player.height) {
         endRun('fall', time);
       }
     }

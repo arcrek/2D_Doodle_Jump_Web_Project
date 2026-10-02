@@ -35,6 +35,7 @@ RULES_ENDLESS = {
     "rules_version": "endless",
     "finish_height": None,
     "max_duration_ms": None,
+    "is_endless": True,
     "skins": RULES["skins"],
     "bots": RULES["bots"],
 }

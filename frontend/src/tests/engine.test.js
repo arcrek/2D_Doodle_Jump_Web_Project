@@ -255,7 +255,7 @@ it('wipe che kín trước khi thay thế thế giới và chỉ mở game sau k
   game.destroy();
 });
 
-it('rút ngắn đoạn trượt và nhịp chờ khi bật giảm chuyển động', () => {
+it('rút ngắn đoạn trượt và nhịp chờ khi bật giảm chuyển độment', () => {
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
   const game = createGame(canvas, {}, { enableIntro: true });
   tick(0);
@@ -429,3 +429,25 @@ it('engine guards lavaDistance in snapshot and only exposes it in gameplay phase
   game.destroy();
 });
 
+it('chế độ vô tận không dừng ở 3000m và trả độ cao đạt được khi kết thúc', () => {
+  const onGameOver = vi.fn();
+  const game = createGame(canvas, { isEndless: true, finish_height: null }, { onGameOver });
+  tick(0);
+  const state = game.getState();
+  state.player.y = 388 - 3500;
+  tick(100);
+  expect(game.getPhase()).toBe('running');
+  expect(onGameOver).not.toHaveBeenCalled();
+
+  state.world.lava.y = state.player.y + state.player.height;
+  tick(120);
+  expect(game.getPhase()).toBe('finished');
+  expect(onGameOver).toHaveBeenCalledTimes(1);
+  expect(onGameOver.mock.calls[0][0]).toMatchObject({
+    finalHeight: 3500,
+    finalMaxHeight: 3500,
+    outcome: 'dnf',
+    reason: 'lava',
+  });
+  game.destroy();
+});

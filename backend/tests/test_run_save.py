@@ -127,15 +127,40 @@ def test_endless_run_accepts_height_and_duration_beyond_old_limits(client):
     assert client.post("/api/runs", json=invalid_finished).status_code == 422
 
 
-def test_endless_leaderboard_orders_by_height_desc(client):
-    runs = [
-        payload(nickname="Pro Climber", rules_version="endless", height=10000, elapsed_ms=600000),
-        payload(nickname="Mid Climber", rules_version="endless", height=5000, elapsed_ms=300000),
-        payload(nickname="Speed Climber", rules_version="endless", height=5000, elapsed_ms=200000),
-    ]
-    for r in runs:
-        assert client.post("/api/runs", json=r).status_code == 201
-    items = client.get("/api/leaderboard?rules_version=endless").json["items"]
-    assert len(items) == 3
-    assert [item["nickname"] for item in items] == ["Pro Climber", "Speed Climber", "Mid Climber"]
+def test_endless_run_save_and_leaderboard(client):
+    run_3500 = payload(rules_version="endless", height=3500, elapsed_ms=45000, outcome="dnf", nickname="Climber 3500")
+    resp = client.post("/api/runs", json=run_3500)
+    assert resp.status_code == 201
+    assert resp.json["height"] == 3500
+    assert resp.json["rules_version"] == "endless"
+
+    # Idempotent retry
+    assert client.post("/api/runs", json=run_3500).status_code == 200
+
+    # Conflict with different height
+    assert client.post("/api/runs", json={**run_3500, "height": 3600}).status_code == 409
+
+    # Endless must have outcome dnf
+    resp_fin = client.post("/api/runs", json=payload(rules_version="endless", height=3500, outcome="finished"))
+    assert resp_fin.status_code == 422
+
+    # Negative height rejected
+    assert client.post("/api/runs", json=payload(rules_version="endless", height=-1, outcome="dnf")).status_code == 422
+
+    # Float height rejected
+    assert client.post("/api/runs", json=payload(rules_version="endless", height=1200.5, outcome="dnf")).status_code == 422
+
+    # Zero or negative elapsed rejected
+    assert client.post("/api/runs", json=payload(rules_version="endless", height=500, elapsed_ms=0, outcome="dnf")).status_code == 422
+
+    # Leaderboard ordering for endless: height DESC
+    run_5000 = payload(rules_version="endless", height=5000, elapsed_ms=60000, outcome="dnf", nickname="Climber 5000")
+    run_1200 = payload(rules_version="endless", height=1200, elapsed_ms=20000, outcome="dnf", nickname="Climber 1200")
+    assert client.post("/api/runs", json=run_5000).status_code == 201
+    assert client.post("/api/runs", json=run_1200).status_code == 201
+
+    lb = client.get("/api/leaderboard?rules_version=endless").json["items"]
+    assert len(lb) == 3
+    assert [row["nickname"] for row in lb] == ["Climber 5000", "Climber 3500", "Climber 1200"]
+    assert [row["height"] for row in lb] == [5000, 3500, 1200]
 
