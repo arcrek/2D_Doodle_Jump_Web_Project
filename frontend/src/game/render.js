@@ -28,6 +28,7 @@ import { BOT_COLORS } from './index.js';
 import { SKIN_PATHS, BOT_PATHS, drawSprite, platformSprite } from './sprites.js';
 import { getEntranceJumpPosition } from './player.js';
 import { renderLava, renderPowerups } from './mechanics.js';
+import { getLocale } from '../i18n/index.js';
 
 const introArtwork = new WeakMap();
 
@@ -36,7 +37,8 @@ function paintIntroArtwork(ctx, width, centerY, drawingTime, hovered, sliding, b
   // blurring thousands of individual strokes creates thousands of filter passes.
   let cached = introArtwork.get(ctx.canvas);
   const drawing = Math.floor(drawingTime * 7.5);
-  if (!cached || cached.width !== width || (!sliding && (cached.drawing !== drawing || cached.hovered !== hovered))) {
+  const currentLocale = getLocale();
+  if (!cached || cached.width !== width || (!sliding && (cached.drawing !== drawing || cached.hovered !== hovered || cached.locale !== currentLocale))) {
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = 280;
@@ -44,7 +46,7 @@ function paintIntroArtwork(ctx, width, centerY, drawingTime, hovered, sliding, b
     if (!ink) return;
     drawDoodleTitle(ink, width / 2, 120, drawingTime);
     drawDoodleStartButton(ink, { x: width / 2 - 110, y: 190, width: 220, height: 50 }, hovered, drawingTime);
-    cached = { canvas, width, drawing, hovered };
+    cached = { canvas, width, drawing, hovered, locale: currentLocale };
     introArtwork.set(ctx.canvas, cached);
   }
   ctx.save();

@@ -1156,3 +1156,59 @@ body, main, .game-layout-container, .canvas-wrapper {
     transition-duration: .01ms !important;
   }
 }
+
+/* ==========================================================================
+   Language Switcher
+   ========================================================================== */
+.language-switcher-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fbf8f0;
+  padding: 2px 4px;
+  border: 1.5px solid #2d2a26;
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 rgb(36 84 59 / 20%);
+  user-select: none;
+}
+
+.language-switcher-group .lang-btn {
+  background: transparent;
+  border: 0;
+  font-family: 'Doodle Hand', 'Patrick Hand', 'Comic Sans MS', cursive, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 7px;
+  cursor: pointer;
+  color: #636159;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.language-switcher-group .lang-btn:hover {
+  color: #1a1917;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.language-switcher-group .lang-btn.is-active {
+  background: #f6df83;
+  color: #16482e;
+  box-shadow: inset 0 0 0 1px #2d2a26;
+  font-weight: 900;
+}
+
+.menu-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.doodle-tools-lang {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0 4px;
+}
+

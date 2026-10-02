@@ -17,6 +17,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import comicBurstMarkup from '../assets/menu-comic-burst.svg?raw';
 import { getJson } from '../services/api.js';
+import { useTranslation } from '../i18n/I18nContext.jsx';
+import LanguageSwitcher from './LanguageSwitcher.jsx';
 
 // =============================================================================
 // 1. COMPONENT TOP BAR (Thanh điều hướng tối trên cùng)
@@ -47,11 +49,13 @@ function ToolIcon({ type }) {
 }
 
 export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestart, onExitToMenu }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const seconds = (Math.max(0, elapsedMs) / 1000).toFixed(1);
   const runAction = (action) => { setOpen(false); action(); };
-  return <header className="game-top-bar" aria-label="Điều khiển trò chơi">
-    <button type="button" className="doodle-menu-toggle" aria-label="Mở điều khiển trò chơi"
+
+  return <header className="game-top-bar" aria-label={t('topbar.aria_controls')}>
+    <button type="button" className="doodle-menu-toggle" aria-label={t('topbar.aria_toggle')}
       aria-expanded={open} aria-controls="game-tools" onClick={() => setOpen(!open)}>
       <PencilFrame />
       <svg className="doodle-menu-lines" viewBox="0 0 40 40" aria-hidden="true">
@@ -63,16 +67,19 @@ export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestar
     {open && <div className="doodle-tools" id="game-tools">
       <PencilFrame fill="#fffaf0" />
       <div className="doodle-tools-heading">
-        <div><small>DOODLE JUMP</small><strong>Điều khiển</strong></div>
-        <button className="doodle-tools-close" type="button" aria-label="Đóng ×" onClick={() => setOpen(false)}>×</button>
+        <div><small>DOODLE JUMP</small><strong>{t('topbar.title')}</strong></div>
+        <button className="doodle-tools-close" type="button" aria-label={t('topbar.close_aria')} onClick={() => setOpen(false)}>×</button>
       </div>
-      <div className="doodle-tools-time">Thời gian <span>{seconds}s</span></div>
+      <div className="doodle-tools-time">{t('topbar.time_label')} <span>{seconds}s</span></div>
+      <div className="doodle-tools-lang">
+        <LanguageSwitcher />
+      </div>
       <div className="doodle-tools-actions">
-        {onTogglePause && <button className="doodle-tool-action is-main" type="button" onClick={() => runAction(onTogglePause)} aria-label="Tạm dừng hoặc tiếp tục ván chơi"><PencilFrame fill="#f6df83" /><ToolIcon type={phase === 'paused' ? 'resume' : 'pause'} /><span>{phase === 'paused' ? 'Tiếp tục' : 'Tạm dừng'}</span><kbd>ESC</kbd></button>}
-        {onRestart && <button className="doodle-tool-action" type="button" onClick={() => runAction(onRestart)} aria-label="Chơi lại ván mới"><ToolIcon type="restart" /><span>Chơi lại</span></button>}
-        {onExitToMenu && <button className="doodle-tool-action" type="button" onClick={() => runAction(onExitToMenu)} aria-label="Quay về màn hình chính"><ToolIcon type="home" /><span>Về màn đầu</span></button>}
+        {onTogglePause && <button className="doodle-tool-action is-main" type="button" onClick={() => runAction(onTogglePause)} aria-label={t('topbar.aria_pause_resume')}><PencilFrame fill="#f6df83" /><ToolIcon type={phase === 'paused' ? 'resume' : 'pause'} /><span>{phase === 'paused' ? t('topbar.resume') : t('topbar.pause')}</span><kbd>ESC</kbd></button>}
+        {onRestart && <button className="doodle-tool-action" type="button" onClick={() => runAction(onRestart)} aria-label={t('topbar.aria_restart')}><ToolIcon type="restart" /><span>{t('topbar.restart')}</span></button>}
+        {onExitToMenu && <button className="doodle-tool-action" type="button" onClick={() => runAction(onExitToMenu)} aria-label={t('topbar.aria_menu')}><ToolIcon type="home" /><span>{t('topbar.menu')}</span></button>}
       </div>
-      <div className="doodle-tools-hint"><kbd>A</kbd><kbd>D</kbd><span>hoặc ← → để di chuyển</span></div>
+      <div className="doodle-tools-hint"><kbd>A</kbd><kbd>D</kbd><span>{t('topbar.move_hint')}</span></div>
     </div>}
   </header>;
 }
@@ -83,40 +90,42 @@ export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestar
 /**
  * Thẻ hiển thị độ cao và vị trí đua top lơ lửng ngay trên bề mặt Canvas (Glassmorphism)
  */
-export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạn', ranking = [], lavaDistance = null }) {
+export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = '', ranking = [], lavaDistance = null }) {
+  const { t } = useTranslation();
   const displayCurrent = Math.max(0, Math.round(currentHeight));
   const displayMax = Math.max(displayCurrent, Math.round(maxHeight));
+  const playerDisplayName = nickname || t('game.default_player_name');
 
   // Nếu chưa có ranking thì hiển thị mặc định người chơi
-  const displayRanking = ranking.length ? ranking : [{ id: 'player', name: nickname || 'Bạn', progress: displayCurrent }];
+  const displayRanking = ranking.length ? ranking : [{ id: 'player', name: playerDisplayName, progress: displayCurrent }];
 
   return (
     <>
       {/* Thẻ Kỷ lục & Hiện tại ở góc trên bên trái Canvas */}
-      <div className="floating-hud-score" aria-label="Thông số độ cao">
+      <div className="floating-hud-score" aria-label={t('hud.aria_score')}>
         <PencilFrame />
         <div className="floating-score-row score-row-high">
           <span>🏆</span>
-          <span>Kỷ lục: {displayMax}m</span>
+          <span>{t('hud.best_label', { val: displayMax })}</span>
         </div>
         <div className="floating-score-row score-row-current">
           <span>🚀</span>
-          <span>Hiện tại: {displayCurrent}m</span>
+          <span>{t('hud.current_label', { val: displayCurrent })}</span>
         </div>
         {typeof lavaDistance === 'number' && (
           <div className={`floating-score-row score-row-lava ${lavaDistance < 100 ? 'is-danger' : lavaDistance < 250 ? 'is-warning' : ''}`}>
             <span>{lavaDistance < 100 ? '⚠️' : '🔥'}</span>
-            <span>Dung nham: {lavaDistance}m</span>
+            <span>{t('hud.lava_label', { val: lavaDistance })}</span>
           </div>
         )}
       </div>
 
       {/* Thẻ ĐUA TOP ở góc trên bên phải Canvas */}
-      <div className="floating-hud-ranking" aria-label="Bảng đua top">
+      <div className="floating-hud-ranking" aria-label={t('hud.aria_ranking')}>
         <PencilFrame />
         <div className="floating-ranking-header">
           <span>🏁</span>
-          <span>ĐUA TOP</span>
+          <span>{t('hud.leaderboard_title')}</span>
         </div>
         <div className="floating-ranking-list">
           {displayRanking.map((item, idx) => (
@@ -125,7 +134,7 @@ export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạ
               className={`floating-ranking-item ${item.id === 'player' ? 'is-player' : ''}`}
             >
               <span className="ranking-name">
-                #{idx + 1} {item.name}
+                #{idx + 1} {item.id === 'player' ? (item.name || playerDisplayName) : item.name}
               </span>
               <span className="ranking-score">{Math.round(item.progress)}m</span>
             </div>
@@ -139,13 +148,6 @@ export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạ
 // =============================================================================
 // 3. COMPONENT HUD (Bảng thông số cổ điển)
 // =============================================================================
-const PHASE_NAMES = {
-  ready: 'Chưa bắt đầu',
-  running: 'Đang chơi',
-  paused: 'Tạm dừng',
-  finished: 'Kết thúc',
-};
-
 /**
  * Bảng thông số đầy đủ hỗ trợ phím tắt ESC
  */
@@ -157,6 +159,7 @@ export default function HUD({
   onTogglePause,
   onRestart,
 }) {
+  const { t } = useTranslation();
   const seconds = (Math.max(0, elapsedMs) / 1000).toFixed(1);
   const displayHeight = Math.max(0, Math.round(height));
   const displayMaxHeight = Math.max(displayHeight, Math.round(maxHeight));
@@ -171,24 +174,24 @@ export default function HUD({
   }, [onTogglePause]);
 
   return (
-    <div className="game-hud-panel" aria-label="Bảng thông số trò chơi">
+    <div className="game-hud-panel" aria-label={t('hud.aria_hud')}>
       <div className="hud-header">
-        <h3 className="hud-panel-title">THÔNG SỐ TRÒ CHƠI</h3>
+        <h3 className="hud-panel-title">{t('hud.stats_title')}</h3>
         <span className={`hud-badge badge-${phase}`} data-testid="hud-phase">
-          {PHASE_NAMES[phase] || 'Chưa bắt đầu'}
+          {t(`hud.phase_${phase}`)}
         </span>
       </div>
 
       <div className="hud-stats-grid">
         {/* Ô độ cao hiện tại và cao nhất */}
         <div className="hud-card hud-height-card">
-          <span className="hud-card-label">Độ cao</span>
+          <span className="hud-card-label">{t('hud.height_label')}</span>
           <div className="hud-height-group">
             <strong className="hud-card-value current-height" data-testid="hud-height">
               {displayHeight}m
             </strong>
             <div className="hud-max-height-box">
-              <span className="max-label">Cao nhất:</span>
+              <span className="max-label">{t('hud.best_label_short')}</span>
               <strong className="max-value" data-testid="hud-max-height">
                 {displayMaxHeight}m
               </strong>
@@ -198,7 +201,7 @@ export default function HUD({
 
         {/* Ô thời gian thi đấu */}
         <div className="hud-card hud-timer-card">
-          <span className="hud-card-label">Thời gian</span>
+          <span className="hud-card-label">{t('hud.time_label')}</span>
           <strong className="hud-card-value timer-value" data-testid="hud-timer">
             {seconds}s
           </strong>
@@ -212,9 +215,9 @@ export default function HUD({
             type="button"
             className={`btn-hud ${phase === 'paused' ? 'btn-resume' : 'btn-pause'}`}
             onClick={onTogglePause}
-            aria-label="Tạm dừng hoặc Tiếp tục"
+            aria-label={t('hud.aria_pause_resume')}
           >
-            {phase === 'paused' ? '▶ Tiếp tục (ESC)' : '⏸ Tạm dừng (ESC)'}
+            {phase === 'paused' ? t('hud.btn_resume') : t('hud.btn_pause')}
           </button>
         )}
 
@@ -223,9 +226,9 @@ export default function HUD({
             type="button"
             className="btn-hud btn-restart"
             onClick={onRestart}
-            aria-label="Chơi lại từ đầu"
+            aria-label={t('hud.aria_restart')}
           >
-            🔄 Chơi lại (Restart)
+            {t('hud.btn_restart')}
           </button>
         )}
       </div>
@@ -246,6 +249,7 @@ export function StartMenu({
   initialNickname = '',
   initialSkin = 'doodle',
 }) {
+  const { t } = useTranslation();
   const [nickname, setNickname] = useState(initialNickname);
   const skinId = initialSkin;
   const [error, setError] = useState('');
@@ -306,11 +310,11 @@ export function StartMenu({
 
     // Ràng buộc tính hợp lệ: Tên không được rỗng và tối đa 24 ký tự
     if (!cleanName) {
-      setError('Vui lòng nhập tên người chơi (1–24 ký tự).');
+      setError(t('menu.name_required'));
       return;
     }
     if (cleanName.length > 24) {
-      setError('Tên người chơi tối đa 24 ký tự.');
+      setError(t('menu.name_max_length'));
       return;
     }
 
@@ -319,20 +323,23 @@ export function StartMenu({
   };
 
   return (
-    <div className="menu-overlay" role="region" aria-label="Menu chính của game">
+    <div className="menu-overlay" role="region" aria-label={t('menu.aria_main_menu')}>
       <div className="menu-comic-stage">
       <div ref={burstRef} className="menu-comic-burst" aria-hidden="true" dangerouslySetInnerHTML={{ __html: comicBurstMarkup }} />
       <div className="menu-card">
         <header className="menu-header">
-          <h2 className="menu-game-title">DOODLE JUMP</h2>
-          <span className="menu-badge">USTH Edition</span>
+          <div className="menu-header-bar">
+            <span className="menu-badge">{t('menu.edition')}</span>
+            <LanguageSwitcher className="menu-lang-switcher" />
+          </div>
+          <h2 className="menu-game-title">{t('menu.title')}</h2>
         </header>
 
         <form className="menu-form" onSubmit={handleSubmit}>
           {/* Ô nhập tên người chơi */}
           <div className="form-group">
             <label htmlFor="player-nickname" className="form-label">
-              Tên người chơi <span className="required-star">*</span>
+              {t('menu.player_name_label')} <span className="required-star">*</span>
             </label>
             <input
               id="player-nickname"
@@ -343,7 +350,7 @@ export function StartMenu({
                 setNickname(e.target.value);
                 if (error) setError('');
               }}
-              placeholder="Nhập tên của bạn..."
+              placeholder={t('menu.player_name_placeholder')}
               maxLength={24}
               autoFocus
             />
@@ -356,25 +363,25 @@ export function StartMenu({
 
           {/* Khối hướng dẫn phím bấm */}
           <div className="menu-controls-info">
-            <p className="controls-title">🎮 Cách điều khiển:</p>
+            <p className="controls-title">{t('menu.controls_title')}</p>
             <div className="controls-keys">
-              <kbd>A</kbd> / <kbd>D</kbd> hoặc <kbd>←</kbd> / <kbd>→</kbd> để di chuyển
+              {t('menu.controls_hint')}
             </div>
           </div>
 
           {/* Các nút bấm hành động */}
           <div className="menu-button-group">
             <button type="submit" className="btn-primary btn-start">
-              ▶ BẮT ĐẦU CHƠI
+              {t('menu.start_button')}
             </button>
             <button
               type="button"
               className="btn-secondary btn-leaderboard"
               onClick={onOpenLeaderboard}
             >
-              Bảng xếp hạng ↗
+              {t('menu.leaderboard_button')}
             </button>
-            {onOpenHistory && <button type="button" className="btn-outline" onClick={onOpenHistory}>Lịch sử của tôi ↗</button>}
+            {onOpenHistory && <button type="button" className="btn-outline" onClick={onOpenHistory}>{t('menu.history_button')}</button>}
           </div>
         </form>
       </div>
@@ -406,7 +413,16 @@ export function GameOverModal({
   // Chỉ render khi phase là 'paused' hoặc 'finished'
   if (phase !== 'paused' && phase !== 'finished') return null;
 
+  const { t } = useTranslation();
   const seconds = (Math.max(0, elapsedMs) / 1000).toFixed(1);
+
+  const getSubtitle = () => {
+    if (outcome === 'finished') return t('game_over.congrats');
+    if (reason === 'lava') return t('game_over.lava_death');
+    if (reason === 'timeout') return t('game_over.timeout_death');
+    if (reason === 'fall') return t('game_over.fall_death');
+    return t('game_over.default_death');
+  };
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -415,42 +431,42 @@ export function GameOverModal({
         {/* TRƯỜNG HỢP 1: TẠM DỪNG GAME (PAUSED) */}
         {phase === 'paused' ? (
           <>
-            <h2 className="modal-title">⏸ Trò Chơi Tạm Dừng</h2>
-            <p className="modal-subtitle">Đang giữ vị trí của <strong>{nickname || 'Bạn'}</strong></p>
+            <h2 className="modal-title">{t('game_over.pause_title')}</h2>
+            <p className="modal-subtitle">{t('game_over.holding_position', { name: nickname || t('game.default_player_name') })}</p>
             <div className="modal-actions-column">
-              <button type="button" className="btn-primary" onClick={onResume}><PencilFrame fill="#f5dc78" /><span>▷ Tiếp tục</span></button>
-              <button type="button" className="btn-secondary" onClick={onRestart}><PencilFrame fill="#fffaf0" /><span>↻ Chơi lại</span></button>
-              <button type="button" className="btn-outline" onClick={onExitToMenu}><PencilFrame fill="#fffaf0" /><span>⌂ Về Menu</span></button>
+              <button type="button" className="btn-primary" onClick={onResume}><PencilFrame fill="#f5dc78" /><span>{t('game_over.resume')}</span></button>
+              <button type="button" className="btn-secondary" onClick={onRestart}><PencilFrame fill="#fffaf0" /><span>{t('game_over.restart')}</span></button>
+              <button type="button" className="btn-outline" onClick={onExitToMenu}><PencilFrame fill="#fffaf0" /><span>{t('game_over.menu')}</span></button>
             </div>
           </>
         ) : (
           /* TRƯỜNG HỢP 2: KẾT THÚC LƯỢT CHƠI (FINISHED) */
           <>
-            <h2 className="modal-title">{outcome === 'finished' ? '🏁 Về đích!' : 'Kết thúc lượt chơi'}</h2>
-            <p className="modal-subtitle">{outcome === 'finished' ? 'Chúc mừng bạn đã chạm đích!' : reason === 'lava' ? 'Bạn đã bị dung nham nuốt chửng!' : reason === 'timeout' ? 'Đã hết thời gian.' : reason === 'fall' ? 'Bạn đã rơi khỏi màn chơi.' : 'Bạn đã kết thúc lượt chơi.'}</p>
+            <h2 className="modal-title">{outcome === 'finished' ? t('game_over.finish_win_title') : t('game_over.finish_over_title')}</h2>
+            <p className="modal-subtitle">{getSubtitle()}</p>
             {/* Tóm tắt thành tích ván đấu */}
             <div className="stats-summary">
               <div className="stat-box highlight">
                 <PencilFrame />
-                <span className="stat-label">Độ cao</span>
+                <span className="stat-label">{t('game_over.stat_height')}</span>
                 <span className="stat-num">{Math.round(height)}m</span>
               </div>
               <div className="stat-box">
                 <PencilFrame />
-                <span className="stat-label">Thời gian</span>
+                <span className="stat-label">{t('game_over.stat_time')}</span>
                 <span className="stat-num">{seconds}s</span>
               </div>
               <div className="stat-box">
                 <PencilFrame />
-                <span className="stat-label">Thứ hạng</span>
-                <span className="stat-num">Top {placement}/5</span>
+                <span className="stat-label">{t('game_over.stat_rank')}</span>
+                <span className="stat-num">{t('game_over.rank_val', { placement })}</span>
               </div>
             </div>
             {/* Trạng thái lưu kết quả vào máy chủ SQLite */}
             {save?.message && <p className={`save-status save-${save.status}`} role="status">{save.message}</p>}
             <div className="modal-actions-column">
-              <button type="button" className="btn-primary" onClick={onRestart}><PencilFrame fill="#f5dc78" /><span>↻ Chơi lại</span></button>
-              <button type="button" className="btn-secondary" onClick={onExitToMenu}><PencilFrame fill="#fffaf0" /><span>⌂ Về Menu</span></button>
+              <button type="button" className="btn-primary" onClick={onRestart}><PencilFrame fill="#f5dc78" /><span>{t('game_over.restart')}</span></button>
+              <button type="button" className="btn-secondary" onClick={onExitToMenu}><PencilFrame fill="#fffaf0" /><span>{t('game_over.menu')}</span></button>
             </div>
           </>
         )}
@@ -466,9 +482,10 @@ export function GameOverModal({
  * Hộp thoại tra cứu Bảng Xếp Hạng Top 10 hoặc Lịch sử thi đấu của người chơi qua REST API Flask
  */
 export function LeaderboardModal({ onClose, rulesVersion = 'v1', offline = false, mode = 'leaderboard', playerId = '' }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(!offline);
-  const [error, setError] = useState(offline ? 'Không tải được dữ liệu khi đang ngoại tuyến.' : '');
+  const [error, setError] = useState(offline ? t('leaderboard.offline_notice') : '');
   const [attempt, setAttempt] = useState(0);
 
   // Tự động gọi API khi modal mở ra
@@ -484,32 +501,32 @@ export function LeaderboardModal({ onClose, rulesVersion = 'v1', offline = false
         setError('');
       })
       .catch(() => {
-        setError('Không tải được dữ liệu. Hãy thử lại khi backend hoạt động.');
+        setError(t('leaderboard.fetch_error'));
         setLoading(false);
       });
-  }, [rulesVersion, offline, mode, playerId, attempt]);
+  }, [rulesVersion, offline, mode, playerId, attempt, t]);
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal-card">
-        <h2 className="modal-title">{mode === 'history' ? '📖 Lịch sử của tôi' : '🏆 Bảng Xếp Hạng Top 10'}</h2>
+        <h2 className="modal-title">{mode === 'history' ? t('leaderboard.history_title') : t('leaderboard.ranking_title')}</h2>
         {loading ? (
-          <p className="modal-status">Đang tải...</p>
+          <p className="modal-status">{t('common.loading')}</p>
         ) : error ? (
           <div className="modal-alert" role="alert">
             <p>{error}</p>
-            {!offline && <button type="button" onClick={() => setAttempt(value => value + 1)}>Thử lại</button>}
+            {!offline && <button type="button" onClick={() => setAttempt(value => value + 1)}>{t('common.retry')}</button>}
           </div>
         ) : items.length === 0 ? (
-          <p className="modal-empty">Chưa có lượt chơi nào.</p>
+          <p className="modal-empty">{t('leaderboard.empty_runs')}</p>
         ) : (
           <table className="leaderboard-table">
             <thead>
               <tr>
-                <th>Hạng</th>
-                <th>Người chơi</th>
-                <th>Độ cao</th>
-                <th>Thời gian</th>
+                <th>{t('leaderboard.col_rank')}</th>
+                <th>{t('leaderboard.col_player')}</th>
+                <th>{t('leaderboard.col_height')}</th>
+                <th>{t('leaderboard.col_time')}</th>
               </tr>
             </thead>
             <tbody>
@@ -525,7 +542,7 @@ export function LeaderboardModal({ onClose, rulesVersion = 'v1', offline = false
           </table>
         )}
         <div className="modal-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>Đóng</button>
+          <button type="button" className="btn-secondary" onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
     </div>

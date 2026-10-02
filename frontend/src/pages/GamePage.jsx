@@ -3,6 +3,7 @@ import GameCanvas from '../components/GameCanvas.jsx';
 import { TopBar, FloatingHUD, StartMenu, GameOverModal, LeaderboardModal } from '../components/HUD.jsx';
 import { useBackend } from '../hooks/useBackend.js';
 import { postJson } from '../services/api.js';
+import { useTranslation } from '../i18n/I18nContext.jsx';
 
 const EMPTY_STATS = { height: 0, maxHeight: 0, placement: 1, ranking: [], lavaDistance: null };
 
@@ -21,6 +22,7 @@ function playerId() {
 
 export default function GamePage() {
   const backend = useBackend();
+  const { t } = useTranslation();
   const showLoopDemo = new URLSearchParams(window.location.search).get('demo') === 'loop';
 
   const gameConfig = useMemo(() => {
@@ -38,7 +40,7 @@ export default function GamePage() {
   const [stats, setStats] = useState(EMPTY_STATS);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [restartKey, setRestartKey] = useState(0);
-  const [playerProfile, setPlayerProfile] = useState({ nickname: 'Bạn', skinId: 'doodle' });
+  const [playerProfile, setPlayerProfile] = useState(() => ({ nickname: t('game.default_player_name'), skinId: 'doodle' }));
   const [recordMode, setRecordMode] = useState(null);
   const [save, setSave] = useState({ status: '', message: '' });
   const gameRef = useRef(null);
@@ -140,10 +142,10 @@ export default function GamePage() {
     runRef.current = null;
     if (!run) return;
     if (backend.offline) {
-      setSave({ status: 'error', message: 'Đang chơi ngoại tuyến; kết quả chưa được lưu.' });
+      setSave({ status: 'error', message: t('save.offline_error') });
       return;
     }
-    setSave({ status: 'saving', message: 'Đang lưu kết quả…' });
+    setSave({ status: 'saving', message: t('save.saving') });
     try {
       await postJson('/api/runs', {
         ...run,
@@ -153,11 +155,11 @@ export default function GamePage() {
         outcome: validOutcome,
         placement: validPlacement,
       });
-      setSave({ status: 'saved', message: 'Đã lưu kết quả.' });
+      setSave({ status: 'saved', message: t('save.saved') });
     } catch (error) {
-      setSave({ status: 'error', message: `Chưa lưu được: ${error.message}` });
+      setSave({ status: 'error', message: t('save.save_error', { error: error.message }) });
     }
-  }, [backend.config, backend.offline, gameConfig]);
+  }, [backend.config, backend.offline, gameConfig, t]);
 
   const handlePhaseChange = useCallback((newPhase) => {
     setPhase(newPhase);
@@ -168,10 +170,10 @@ export default function GamePage() {
 
   return <>
     <h1 className="game-title">Doodle Jump</h1>
-    {backend.loading && <p role="status">Đang tải…</p>}
+    {backend.loading && <p role="status">{t('common.loading')}</p>}
     {backend.error && <div role="alert">
-      <p>Chưa tải được cấu hình game.</p>
-      <button onClick={backend.retry}>Thử lại</button>
+      <p>{t('common.config_error')}</p>
+      <button onClick={backend.retry}>{t('common.retry')}</button>
     </div>}
     {backend.config && (
       <div className="game-layout-container">
@@ -203,13 +205,13 @@ export default function GamePage() {
               />
             </div>
 
-            {(phase === 'running' || phase === 'intro_wait_input') && <div className="touch-controls" aria-label="Điều khiển chạm">
-              <button type="button" aria-label="Di chuyển sang trái"
+            {(phase === 'running' || phase === 'intro_wait_input') && <div className="touch-controls" aria-label={t('aria.touch_controls')}>
+              <button type="button" aria-label={t('aria.move_left')}
                 onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); gameRef.current?.setDirection('left', true); }}
                 onPointerUp={() => gameRef.current?.setDirection('left', false)}
                 onPointerCancel={() => gameRef.current?.setDirection('left', false)}
                 onLostPointerCapture={() => gameRef.current?.setDirection('left', false)}>←</button>
-              <button type="button" aria-label="Di chuyển sang phải"
+              <button type="button" aria-label={t('aria.move_right')}
                 onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); gameRef.current?.setDirection('right', true); }}
                 onPointerUp={() => gameRef.current?.setDirection('right', false)}
                 onPointerCancel={() => gameRef.current?.setDirection('right', false)}

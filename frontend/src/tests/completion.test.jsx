@@ -1,10 +1,20 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createRaceBots, updateRaceBots } from '../game/bots.js';
 import { finish, createState, snapshot } from '../game/simulation.js';
 import { StartMenu } from '../components/HUD.jsx';
+import { setLocale } from '../i18n/index.js';
 
-afterEach(cleanup);
+beforeEach(() => {
+  localStorage.clear();
+  setLocale('en');
+});
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  setLocale('en');
+});
 
 const config = {
   finish_height: 3000,
@@ -57,9 +67,9 @@ it('keeps the profile skin without showing a skin selector in the menu', () => {
   const onStartGame = vi.fn();
   render(<StartMenu initialSkin="purple" onStartGame={onStartGame}
     onOpenLeaderboard={() => {}} onOpenHistory={() => {}} />);
-  fireEvent.change(screen.getByLabelText(/Tên người chơi/), { target: { value: 'Vinh' } });
-  expect(screen.queryByLabelText(/Trang phục/)).toBeNull();
-  expect(screen.getByText(/Cách điều khiển/)).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: /BẮT ĐẦU CHƠI/ }));
+  fireEvent.change(screen.getByLabelText(/Player Name/i), { target: { value: 'Vinh' } });
+  expect(screen.queryByLabelText(/Skin/i)).toBeNull();
+  expect(screen.getByText(/Controls:/i)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /PLAY NOW/i }));
   expect(onStartGame).toHaveBeenCalledWith({ nickname: 'Vinh', skinId: 'purple' });
 });
