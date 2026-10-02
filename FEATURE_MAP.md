@@ -106,6 +106,16 @@
 
 ---
 
+### Module 11: Internationalization & Localization (i18n Multi-Language)
+- **Mô tả ngắn:** Quản lý đa ngôn ngữ zero-dependency (English, Vietnamese, French). Hỗ trợ React Context hook (`useTranslation()`), synchronous Canvas lookup (`t()`), từ điển JSON (`en.json`, `vi.json`, `fr.json`), LanguageSwitcher trong StartMenu & TopBar, và lưu tùy chọn vào `localStorage`.
+- **Điểm chạm (Touchpoints):**
+  - 🌐 **i18n Core Store:** `frontend/src/i18n/index.js`, `frontend/src/i18n/I18nContext.jsx`
+  - 📖 **Locale Dictionaries:** `frontend/src/locales/en.json`, `frontend/src/locales/vi.json`, `frontend/src/locales/fr.json`
+  - 🖥️ **UI Switcher:** `frontend/src/components/LanguageSwitcher.jsx`
+  - 🧪 **Test File:** `frontend/src/tests/i18n.test.js`, `frontend/src/tests/i18n-integration.test.jsx`
+
+---
+
 ## 🚫 3. Rào Chắn Cứng & Điều Cấm Kỵ (Hard Negative Constraints)
 
 > *Những quy tắc tuyệt đối AI Agent không được vi phạm khi sửa codebase này:*

@@ -12,6 +12,8 @@
 // 6. drawDoodleWipe: Vẽ hiệu ứng rèm gạt màn hình màu xanh lá có viền răng cưa khi chơi lại.
 // =============================================================================
 
+import { t } from '../i18n/index.js';
+
 /**
  * Vẽ một đoạn thẳng có độ rung ngẫu nhiên (jitter) tạo cảm giác nét vẽ tay của người thật.
  * @param {CanvasRenderingContext2D} ctx - Ngữ cảnh vẽ 2D
@@ -192,7 +194,7 @@ export function drawDoodleTitle(ctx, centerX, centerY, timeSec = 0) {
   // --- PHẦN 1: Dòng chữ phụ phiên bản trường USTH ---
   ctx.font = 'bold 14px "Patrick Hand", "Comic Sans MS", cursive, sans-serif';
   ctx.fillStyle = '#2d5a43'; // Màu xanh rêu đậm
-  ctx.fillText('★ USTH MULTIPLAYER EDITION ★', centerX, y - 54);
+  ctx.fillText(t('game.usth_edition'), centerX, y - 54);
 
   // --- PHẦN 2: Chi tiết trang trí nét vẽ vui nhộn hai bên ---
   ctx.strokeStyle = '#e67e22'; // Màu cam
@@ -285,11 +287,11 @@ export function drawDoodleStartButton(ctx, btnBounds, isHovered = false, timeSec
   outline.push(outline[0]);
   charcoalStroke(ctx, outline, drawing + 101, (isHovered ? 1.3 : 1) * (.8 + graphiteNoise(drawing * 53) * .4));
 
-  // 3. Chữ bên trong nút: "▶ BẮT ĐẦU CHƠI"
+  // 3. Chữ bên trong nút
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 18px "Patrick Hand", "Fredoka", "Comic Sans MS", cursive, sans-serif';
-  const label = '▶ BẮT ĐẦU CHƠI';
+  const label = t('game.start_btn_canvas');
   let penX = x + width / 2 - ctx.measureText(label).width / 2;
   ctx.textAlign = 'left';
   for (const [index, letter] of Array.from(label).entries()) {
@@ -320,7 +322,7 @@ export function drawDoodleArrowGuide(ctx, canvasWidth, canvasHeight, timeSec = 0
   ctx.save();
   const x = canvasWidth - 230, y = canvasHeight - 65;
   const drawing = Math.floor(timeSec * 7.5);
-  drawPencilLabel(ctx, 'Bấm phím để xuất phát!', x + 100, y - 14, drawing, 15);
+  drawPencilLabel(ctx, t('game.press_key_start'), x + 100, y - 14, drawing, 15);
   drawKeyBox(ctx, x + 55, y + 12, '← / A', drawing + 53);
   drawKeyBox(ctx, x + 145, y + 12, '→ / D', drawing + 107);
   ctx.restore();
@@ -386,7 +388,7 @@ export function drawDoodleCharacter(ctx, char, cameraY, timeSec = 0, isPlayer = 
   ctx.textBaseline = 'bottom';
   ctx.font = 'bold 11px sans-serif';
   ctx.fillStyle = isPlayer ? '#166534' : '#1e293b';
-  const label = isPlayer ? 'YOU' : (char.name || 'Bot');
+  const label = isPlayer ? t('game.player_you') : (char.name || 'Bot');
   ctx.fillText(label, screenX + w / 2, screenY - 4);
 
   // 2. Mũi tên tam giác màu xanh lá chỉ định vị trí người chơi

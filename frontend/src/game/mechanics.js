@@ -25,6 +25,7 @@ import {
 import { onBotBounce } from './bots.js';
 import { isLandingOnPlatform } from './collision.js';
 import { drawSprite, POWERUP_PATHS } from './sprites.js';
+import { t } from '../i18n/index.js';
 
 // =============================================================================
 // 1. CƠ CHẾ DUNG NHAM DÂNG (RISING LAVA)
@@ -260,7 +261,12 @@ export function renderLava(ctx, lava, cameraY, width, height, time = 0, player =
       ctx.save();
       const isCritical = lavaDistance < 100;
       const pulse = Math.sin(time * 8) * (isCritical ? 2.5 : 1.2);
-      const badgeW = 210;
+      ctx.font = 'bold 12px sans-serif';
+      const warningText = isCritical
+        ? t('game.lava_warning_critical', { distance: lavaDistance })
+        : t('game.lava_warning_notice', { distance: lavaDistance });
+      const textW = typeof ctx.measureText === 'function' ? ctx.measureText(warningText)?.width || 0 : 0;
+      const badgeW = Math.max(210, textW + 24);
       const badgeH = 30;
       const badgeX = (width - badgeW) / 2;
       const badgeY = Math.min(height - 42, Math.max(20, screenLavaY - 42)) + pulse;
@@ -279,12 +285,8 @@ export function renderLava(ctx, lava, cameraY, width, height, time = 0, player =
       ctx.stroke();
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const warningText = isCritical
-        ? `⚠️ DUNG NHAM: CÒN ${lavaDistance}m! ⚠️`
-        : `🔥 Dung nham cách: ${lavaDistance}m`;
       ctx.fillText(warningText, width / 2, badgeY + badgeH / 2);
       ctx.restore();
     }
