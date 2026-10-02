@@ -25,7 +25,8 @@ import {
   drawDoodleWipe
 } from './doodle-art.js';
 import { BOT_COLORS } from './index.js';
-import { SKIN_PATHS, BOT_PATHS, drawSprite } from './sprites.js';
+import { SKIN_PATHS, BOT_PATHS, drawSprite, platformSprite } from './sprites.js';
+import { getEntranceJumpPosition } from './player.js';
 
 const introArtwork = new WeakMap();
 
@@ -195,14 +196,16 @@ export function render(ctx, state) {
   // Chỉ vẽ người chơi khi đã qua khỏi màn hình tiêu đề và trượt camera
   const showPlayer = !['intro_title', 'intro_sliding', 'intro_menu_delay', 'intro_platform', 'ready'].includes(phase);
   const entranceProgress = Math.max(0, Math.min(1, ui.playerEntranceProgress ?? 0));
-
-  // Trong hoạt cảnh 'intro_player', tính quỹ đạo Parabol bay từ ngoài cánh gà vào bệ xuất phát
-  const displayPlayer = phase === 'intro_player'
-    ? {
-        ...player,
-        x: -player.width - 20 + (300 + player.width + 20) * entranceProgress,
-        y: 388 - Math.sin(Math.PI * entranceProgress) * 110 // Đỉnh nhảy vút lên 110px
-      }
+  const entrancePos = phase === 'intro_player'
+    ? getEntranceJumpPosition(entranceProgress, {
+        playerWidth: player.width,
+        playerHeight: player.height,
+        targetX: 300,
+        targetY: 388,
+      })
+    : null;
+  const displayPlayer = entrancePos
+    ? { ...player, x: entrancePos.x, y: entrancePos.y }
     : player;
 
   const playerY = displayPlayer.y - cameraY;
