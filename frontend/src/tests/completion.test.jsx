@@ -44,6 +44,15 @@ it('creates a persistent result with placement when a run ends', () => {
   expect(state.result.placement).toBeLessThanOrEqual(3);
 });
 
+it('computes result with outcome dnf and achieved height in endless mode', () => {
+  const state = createState({ ...config, finish_height: null, isEndless: true });
+  state.elapsedMs = 45000;
+  state.player.progress = 3500;
+  state.maxHeight = 3500;
+  finish(state, 'lava');
+  expect(state.result).toMatchObject({ height: 3500, elapsed_ms: 45000, outcome: 'dnf' });
+});
+
 it('keeps the profile skin without showing a skin selector in the menu', () => {
   const onStartGame = vi.fn();
   render(<StartMenu initialSkin="purple" onStartGame={onStartGame}

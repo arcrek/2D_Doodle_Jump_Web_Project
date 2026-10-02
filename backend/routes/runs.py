@@ -99,23 +99,33 @@ def post_runs():
         current_rules = ALL_RULES[version]
 
     max_placement = 4 if version == "v2" else 5
-    for key, low, high in (("height", 0, current_rules["finish_height"]),
-                           ("elapsed_ms", 1, current_rules["max_duration_ms"]),
-                           ("placement", 1, max_placement)):
-        if type(clean[key]) is not int or not low <= clean[key] <= high:
-            errors[key] = f"Cần số nguyên từ {low} đến {high}."
+    if current_rules.get("finish_height") is None or current_rules.get("is_endless"):
+        if type(clean["height"]) is not int or clean["height"] < 0:
+            errors["height"] = "Cần số nguyên không âm."
+        if type(clean["elapsed_ms"]) is not int or clean["elapsed_ms"] < 1:
+            errors["elapsed_ms"] = "Cần số nguyên lớn hơn hoặc bằng 1."
+        if type(clean["placement"]) is not int or not 1 <= clean["placement"] <= max_placement:
+            errors["placement"] = f"Cần số nguyên từ 1 đến {max_placement}."
+        if clean["outcome"] != "dnf":
+            errors["outcome"] = "Kết quả chế độ vô tận phải là dnf."
+    else:
+        for key, low, high in (("height", 0, current_rules["finish_height"]),
+                               ("elapsed_ms", 1, current_rules["max_duration_ms"]),
+                               ("placement", 1, max_placement)):
+            if type(clean[key]) is not int or not low <= clean[key] <= high:
+                errors[key] = f"Cần số nguyên từ {low} đến {high}."
 
-    if clean["outcome"] not in ("finished", "dnf"):
-        errors["outcome"] = "Kết quả không hợp lệ."
-    elif "height" not in errors:
-        reached_goal = clean["height"] == current_rules["finish_height"]
-        if reached_goal != (clean["outcome"] == "finished"):
-            errors["outcome"] = "Kết quả không khớp độ cao."
+        if clean["outcome"] not in ("finished", "dnf"):
+            errors["outcome"] = "Kết quả không hợp lệ."
+        elif "height" not in errors:
+            reached_goal = clean["height"] == current_rules["finish_height"]
+            if reached_goal != (clean["outcome"] == "finished"):
+                errors["outcome"] = "Kết quả không khớp độ cao."
 
-    if clean.get("outcome") == "finished" and version == "v2" and "elapsed_ms" not in errors:
-        min_finish = current_rules.get("min_finish_duration_ms", 7500)
-        if clean["elapsed_ms"] < min_finish:
-            errors["elapsed_ms"] = f"Thời gian về đích không thể nhỏ hơn {min_finish}ms."
+        if clean.get("outcome") == "finished" and version == "v2" and "elapsed_ms" not in errors:
+            min_finish = current_rules.get("min_finish_duration_ms", 7500)
+            if clean["elapsed_ms"] < min_finish:
+                errors["elapsed_ms"] = f"Thời gian về đích không thể nhỏ hơn {min_finish}ms."
 
     if errors:
         raise APIError("invalid_run", "Dữ liệu chưa hợp lệ.", errors, 422)
