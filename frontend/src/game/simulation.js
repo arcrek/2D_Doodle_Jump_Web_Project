@@ -3,7 +3,7 @@ import { createWorld, updatePlatforms } from './world.js';
 import { applyPhysics, handlePlatformCollisions, handleScreenWrap } from './physics.js';
 import { createRaceBots, updateBotAI, onBotBounce } from './bots.js';
 import { getRanking } from './ranking.js';
-import { SCREEN_HEIGHT, SCREEN_WIDTH, TARGET_HEIGHT } from './index.js';
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from './index.js';
 
 export function createState(config = {}) {
   const player = {
@@ -18,7 +18,7 @@ export function createState(config = {}) {
     player,
     world: createWorld(),
     bots: createRaceBots(config.bots),
-    config: { finish_height: TARGET_HEIGHT, max_duration_ms: 180000, ...config },
+    config: { finish_height: null, max_duration_ms: null, ...config },
     elapsedMs: 0,
     maxHeight: 0,
     finished: false,
@@ -54,7 +54,7 @@ export function finish(state, reason) {
   const ranking = getRanking(state.player, state.bots);
   state.result = {
     height: Math.floor(state.player.progress),
-    elapsed_ms: Math.max(1, Math.min(state.config.max_duration_ms, Math.round(state.elapsedMs))),
+    elapsed_ms: Math.max(1, state.config.max_duration_ms ? Math.min(state.config.max_duration_ms, Math.round(state.elapsedMs)) : Math.round(state.elapsedMs)),
     outcome: reason === 'goal' ? 'finished' : 'dnf',
     placement: ranking.findIndex((item) => item.id === 'player') + 1,
   };
@@ -63,7 +63,7 @@ export function finish(state, reason) {
 export function step(state, dt, direction) {
   if (state.finished) return;
   const { player, world, config, bots } = state;
-  state.elapsedMs = Math.min(config.max_duration_ms, state.elapsedMs + dt * 1000);
+  state.elapsedMs = config.max_duration_ms ? Math.min(config.max_duration_ms, state.elapsedMs + dt * 1000) : (state.elapsedMs + dt * 1000);
 
   // Sinh bệ đón đầu theo đối tượng cao nhất (Player hoặc Bot dẫn đầu)
   let highestEntityY = player.y;
@@ -80,7 +80,9 @@ export function step(state, dt, direction) {
   applyPhysics(player, dt);
   handlePlatformCollisions(player, world.platforms);
 
-  player.progress = Math.min(config.finish_height, Math.max(player.progress, 388 - player.y));
+  player.progress = typeof config.finish_height === 'number'
+    ? Math.min(config.finish_height, Math.max(player.progress, 388 - player.y))
+    : Math.max(player.progress, 388 - player.y);
   state.maxHeight = Math.max(state.maxHeight, player.progress);
   world.cameraY = Math.min(world.cameraY, player.y - 210);
 
@@ -104,10 +106,12 @@ export function step(state, dt, direction) {
 
     // Cập nhật tiến độ độ cao bot leo được
     const botProgress = Math.max(0, Math.round(388 - bot.y));
-    bot.progress = Math.min(config.finish_height, Math.max(bot.progress, botProgress));
+    bot.progress = typeof config.finish_height === 'number'
+      ? Math.min(config.finish_height, Math.max(bot.progress, botProgress))
+      : Math.max(bot.progress, botProgress);
 
     // Đạt đích hoặc rơi vực
-    if (bot.progress >= config.finish_height) {
+    if (typeof config.finish_height === 'number' && bot.progress >= config.finish_height) {
       bot.finishedAt = state.elapsedMs;
     } else if (bot.y - world.cameraY > SCREEN_HEIGHT + bot.height + 60) {
       bot.isDead = true;
@@ -115,12 +119,12 @@ export function step(state, dt, direction) {
   }
 
   // Kiểm tra điều kiện kết thúc của Player
-  if (player.progress >= config.finish_height) {
+  if (typeof config.finish_height === 'number' && player.progress >= config.finish_height) {
     player.finishedAt = state.elapsedMs;
     finish(state, 'goal');
   } else if (player.y - world.cameraY > SCREEN_HEIGHT + player.height) {
     finish(state, 'fall');
-  } else if (state.elapsedMs >= config.max_duration_ms) {
+  } else if (typeof config.max_duration_ms === 'number' && state.elapsedMs >= config.max_duration_ms) {
     finish(state, 'timeout');
   }
 }

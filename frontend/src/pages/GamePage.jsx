@@ -63,20 +63,20 @@ export default function GamePage() {
   const handleRestart = useCallback(() => {
     setSave({ status: '', message: '' });
     runRef.current = { run_id: crypto.randomUUID(), player_id: playerId(), nickname: playerProfile.nickname,
-      skin_id: playerProfile.skinId, rules_version: backend.config?.rules_version || 'v1' };
+      skin_id: playerProfile.skinId, rules_version: 'endless' };
     if (gameRef.current?.triggerRestartWipe) {
       gameRef.current.triggerRestartWipe();
     } else {
       setRestartKey(k => k + 1);
       setPhase('warmup_hop');
     }
-  }, [backend.config, playerProfile]);
+  }, [playerProfile]);
 
   // Xử lý khi người chơi submit StartMenu (chọn tên và skin)
   const handleStartGame = useCallback(({ nickname, skinId }) => {
     setPlayerProfile({ nickname, skinId });
     runRef.current = { run_id: crypto.randomUUID(), player_id: playerId(), nickname,
-      skin_id: skinId, rules_version: backend.config?.rules_version || 'v1' };
+      skin_id: skinId, rules_version: 'endless' };
     setSave({ status: '', message: '' });
     gameRef.current?.setPlayerName?.(nickname);
     if (gameRef.current?.setPlayerSkin) {
@@ -124,13 +124,13 @@ export default function GamePage() {
     }
     setSave({ status: 'saving', message: 'Đang lưu kết quả…' });
     try {
-      await postJson('/api/runs', { ...run, height: Math.min(backend.config.finish_height, Math.round(finalMaxHeight)),
+      await postJson('/api/runs', { ...run, height: Math.round(finalMaxHeight),
         elapsed_ms: finalElapsed, outcome, placement });
       setSave({ status: 'saved', message: 'Đã lưu kết quả.' });
     } catch (error) {
       setSave({ status: 'error', message: `Chưa lưu được: ${error.message}` });
     }
-  }, [backend.config, backend.offline]);
+  }, [backend.offline]);
 
   const handlePhaseChange = useCallback((newPhase) => {
     setPhase(newPhase);
@@ -217,7 +217,7 @@ export default function GamePage() {
             />
 
             {recordMode && (
-              <LeaderboardModal mode={recordMode} playerId={playerId()} onClose={() => setRecordMode(null)} rulesVersion={backend.config.rules_version} offline={backend.offline} />
+              <LeaderboardModal mode={recordMode} playerId={playerId()} onClose={() => setRecordMode(null)} rulesVersion="endless" offline={backend.offline} />
             )}
           </GameCanvas>
         </div>

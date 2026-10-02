@@ -102,3 +102,40 @@ def test_leaderboard_limit_and_finish_order(client):
     assert set(rows[0]) == {"nickname", "skin_id", "rules_version", "height", "elapsed_ms",
                             "outcome", "placement", "created_at"}
     assert client.get("/api/leaderboard?rules_version=invalid").status_code == 422
+
+
+def test_endless_run_accepts_height_and_duration_beyond_old_limits(client):
+    endless_run = payload(
+        rules_version="endless",
+        height=5420,
+        elapsed_ms=250000,
+        outcome="dnf",
+    )
+    res = client.post("/api/runs", json=endless_run)
+    assert res.status_code == 201
+    assert res.json["height"] == 5420
+    assert res.json["elapsed_ms"] == 250000
+    assert res.json["rules_version"] == "endless"
+
+    # Outcome "finished" is rejected in endless mode because there is no finish line
+    invalid_finished = payload(
+        rules_version="endless",
+        height=5420,
+        elapsed_ms=250000,
+        outcome="finished",
+    )
+    assert client.post("/api/runs", json=invalid_finished).status_code == 422
+
+
+def test_endless_leaderboard_orders_by_height_desc(client):
+    runs = [
+        payload(nickname="Pro Climber", rules_version="endless", height=10000, elapsed_ms=600000),
+        payload(nickname="Mid Climber", rules_version="endless", height=5000, elapsed_ms=300000),
+        payload(nickname="Speed Climber", rules_version="endless", height=5000, elapsed_ms=200000),
+    ]
+    for r in runs:
+        assert client.post("/api/runs", json=r).status_code == 201
+    items = client.get("/api/leaderboard?rules_version=endless").json["items"]
+    assert len(items) == 3
+    assert [item["nickname"] for item in items] == ["Pro Climber", "Speed Climber", "Mid Climber"]
+

@@ -99,18 +99,27 @@ def post_runs():
         current_rules = ALL_RULES[version]
 
     max_placement = 4 if version == "v2" else 5
-    for key, low, high in (("height", 0, current_rules["finish_height"]),
-                           ("elapsed_ms", 1, current_rules["max_duration_ms"]),
-                           ("placement", 1, max_placement)):
-        if type(clean[key]) is not int or not low <= clean[key] <= high:
-            errors[key] = f"Cần số nguyên từ {low} đến {high}."
+    if type(clean["placement"]) is not int or not (1 <= clean["placement"] <= max_placement):
+        errors["placement"] = f"Cần số nguyên từ 1 đến {max_placement}."
+
+    max_h = current_rules.get("finish_height")
+    if type(clean["height"]) is not int or clean["height"] < 0 or (max_h is not None and clean["height"] > max_h):
+        errors["height"] = f"Cần số nguyên từ 0 đến {max_h}." if max_h is not None else "Cần số nguyên không âm."
+
+    max_d = current_rules.get("max_duration_ms")
+    if type(clean["elapsed_ms"]) is not int or clean["elapsed_ms"] < 1 or (max_d is not None and clean["elapsed_ms"] > max_d):
+        errors["elapsed_ms"] = f"Cần số nguyên từ 1 đến {max_d}." if max_d is not None else "Cần số nguyên dương."
 
     if clean["outcome"] not in ("finished", "dnf"):
         errors["outcome"] = "Kết quả không hợp lệ."
     elif "height" not in errors:
-        reached_goal = clean["height"] == current_rules["finish_height"]
-        if reached_goal != (clean["outcome"] == "finished"):
-            errors["outcome"] = "Kết quả không khớp độ cao."
+        if max_h is not None:
+            reached_goal = clean["height"] == max_h
+            if reached_goal != (clean["outcome"] == "finished"):
+                errors["outcome"] = "Kết quả không khớp độ cao."
+        else:
+            if clean["outcome"] == "finished":
+                errors["outcome"] = "Chế độ vô tận không có vạch đích."
 
     if clean.get("outcome") == "finished" and version == "v2" and "elapsed_ms" not in errors:
         min_finish = current_rules.get("min_finish_duration_ms", 7500)

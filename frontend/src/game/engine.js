@@ -263,9 +263,6 @@ export function createGame(canvas, config, {
     soundManager.stopBGM();
 
     const outcome = reason === 'goal' ? 'finished' : 'dnf';
-    if (typeof config?.finish_height === 'number' && !config?.isEndless) {
-      maxHeight = Math.min(config.finish_height, maxHeight);
-    }
     publishStats(time);
 
     const ranking = getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots);
@@ -279,7 +276,7 @@ export function createGame(canvas, config, {
     onGameOver?.({
       finalHeight: maxHeight,
       finalMaxHeight: maxHeight,
-      elapsedMs: Math.max(1, Math.min(config?.max_duration_ms ?? 180000, Math.round(elapsedMs))),
+      elapsedMs: Math.max(1, Math.round(elapsedMs)),
       placement: ranking.findIndex(item => item.id === 'player') + 1,
       outcome,
       reason,
@@ -782,7 +779,7 @@ export function createGame(canvas, config, {
 
         // Chỉ đánh dấu tử nạn khi rơi quá sâu khỏi đáy màn hình nếu không có Dung nham (fallback mode).
         // Khi có Dung nham (Lava): Bot rơi ra ngoài màn hình KHÔNG chết, chỉ tử nạn khi chạm vào Dung nham (xử lý trong updateLava).
-        if (!state.world?.lava && !config?.isEndless && bot.y - state.world.cameraY > canvas.height + 100) {
+        if (!state.world?.lava && bot.y - state.world.cameraY > canvas.height + 100) {
           bot.isDead = true;
           sound.playBotFall(bot.x / canvas.width);
         }
@@ -823,16 +820,9 @@ export function createGame(canvas, config, {
       }
 
       // 9. Kiểm tra các điều kiện kết thúc ván đấu:
-      // - Chế độ Endless: không có vạch đích 3000m, game chỉ kết thúc khi bị Dung nham nuốt!
-      if (typeof config?.finish_height === 'number' && !config?.isEndless && maxHeight >= config.finish_height) {
-        endRun('goal', time);
-      }
-      // - Hết thời gian cho phép (chỉ áp dụng khi không phải chế độ endless):
-      else if (typeof config?.max_duration_ms === 'number' && !config?.isEndless && elapsedMs >= config.max_duration_ms) {
-        endRun('timeout', time);
-      }
-      // - Rơi tụt xuống khỏi đáy màn hình: Không kết thúc ván khi có dung nham (chỉ chết khi chạm Dung nham)
-      else if (!state.world?.lava && !config?.isEndless && state.player.y - state.world.cameraY > canvas.height + state.player.height) {
+      // Trong chế độ Endless, không có vạch đích 3000m hay giới hạn thời gian 180s. Game kết thúc khi bị Dung nham nuốt chửng.
+      // Trường hợp dự phòng nếu không có Dung nham: rơi khỏi đáy màn hình
+      if (!state.world?.lava && state.player.y - state.world.cameraY > canvas.height + state.player.height) {
         endRun('fall', time);
       }
     }

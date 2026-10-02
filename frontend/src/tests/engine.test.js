@@ -319,16 +319,27 @@ it('bot vào ở giây 8/16/24/32 của lượt chơi, pause không tính giờ'
   game.destroy();
 });
 
-it('kết thúc một lần khi hết giờ và trả dữ liệu hợp lệ để lưu', () => {
+it('chế độ endless không bị giới hạn thời gian 180s và ghi nhận elapsedMs chính xác', () => {
   const onGameOver = vi.fn();
-  const game = createGame(canvas, { max_duration_ms: 100, finish_height: 3000 }, { onGameOver });
+  const game = createGame(canvas, { isEndless: true }, { onGameOver });
   tick(0);
-  tick(120);
+  // Mô phỏng chơi qua 185s (> 180s)
+  tick(185000);
+  expect(game.getPhase()).toBe('running');
+  expect(onGameOver).not.toHaveBeenCalled();
+
+  // Khi game kết thúc do chạm dung nham
+  const state = game.getState();
+  state.world.lava.y = state.player.y;
+  tick(185016);
+
   expect(game.getPhase()).toBe('finished');
   expect(onGameOver).toHaveBeenCalledTimes(1);
-  expect(onGameOver.mock.calls[0][0]).toMatchObject({ elapsedMs: 100, outcome: 'dnf', reason: 'timeout' });
-  tick(240);
-  expect(onGameOver).toHaveBeenCalledTimes(1);
+  expect(onGameOver.mock.calls[0][0]).toMatchObject({
+    outcome: 'dnf',
+    reason: 'lava',
+  });
+  expect(onGameOver.mock.calls[0][0].elapsedMs).toBeGreaterThanOrEqual(185000);
   game.destroy();
 });
 
