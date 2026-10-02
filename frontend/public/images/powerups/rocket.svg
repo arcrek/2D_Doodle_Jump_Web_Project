@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 64" width="48" height="64">
+  <!-- Flame Thruster -->
+  <path d="M19 50 Q24 62 24 62 Q24 62 29 50 Z" fill="#ff9900" stroke="#d35400" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M21 50 Q24 57 24 57 Q24 57 27 50 Z" fill="#f1c40f"/>
+
+  <!-- Left Fin -->
+  <path d="M14 36 L6 48 C6 48 10 50 15 47 L16 41 Z" fill="#e74c3c" stroke="#2c3e50" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Right Fin -->
+  <path d="M34 36 L42 48 C42 48 38 50 33 47 L32 41 Z" fill="#e74c3c" stroke="#2c3e50" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Rocket Body / Fuselage -->
+  <path d="M24 4 C16 16 14 32 14 48 L34 48 C34 32 32 16 24 4 Z" fill="#ffffff" stroke="#2c3e50" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Red Nose Cone -->
+  <path d="M24 4 C20 12 18 18 17 21 C21 23 27 23 31 21 C30 18 28 12 24 4 Z" fill="#e74c3c" stroke="#2c3e50" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Body Stripe -->
+  <path d="M14.5 40 C19 42 29 42 33.5 40 L34 46 C29 48 19 48 14 46 Z" fill="#3498db" stroke="#2c3e50" stroke-width="1.8" stroke-linejoin="round"/>
+
+  <!-- Porthole Window -->
+  <circle cx="24" cy="29" r="6" fill="#3498db" stroke="#2c3e50" stroke-width="2"/>
+  <circle cx="24" cy="29" r="4" fill="#68d8d6"/>
+  <!-- Highlight reflection -->
+  <path d="M22 26 A 3 3 0 0 1 26 26" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg>

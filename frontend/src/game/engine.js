@@ -22,8 +22,22 @@ import {
 } from './world.js';
 import { render } from './render.js';
 import { createStartingBots, updateBotAI, onBotBounce } from './bots.js';
-import { sound } from './audio.js';
-import { CAMERA_SIGHT_RATIO, JUMP_VELOCITY } from './index.js';
+import { sound, soundManager } from './audio.js';
+import {
+  createLavaState,
+  updateLava,
+  createPowerupState,
+  spawnPowerupsForPlatforms,
+  updatePowerups,
+  updateBotPhysics,
+} from './mechanics.js';
+import {
+  CAMERA_SIGHT_RATIO,
+  JUMP_VELOCITY,
+  POWERUP_SPAWN_CHANCE,
+  POWERUP_ROCKET_CHANCE,
+  POWERUP_TYPES,
+} from './index.js';
 import { getRanking } from './ranking.js';
 import { preloadSprites } from './sprites.js';
 import { INTRO_CAMERA_DURATION_MS, sampleIntroCameraMotion } from './intro-camera-motion.js';
@@ -146,9 +160,12 @@ export function createGame(canvas, config, {
     ? { platforms: [], cameraY: Y_INTRO }
     : createWorld({ forIntro: enableIntro });
   if (enableIntro && phase === 'intro_sliding') world.cameraY = Y_INTRO;
+  world.lava = createLavaState();
+  spawnPowerupsForPlatforms(world.platforms);
 
   // Khởi tạo thực thể người chơi (Player) tại vị trí bệ sàn (x: 300, y: 388)
   const player = createPlayer();
+  player.powerup = createPowerupState();
 
   // Danh sách các Bot: nếu có intro thì chưa xuất hiện bot ngay (bots = []),
   // ngược lại nếu vào chơi ngay thì khởi tạo sẵn 4 Bot
@@ -213,6 +230,11 @@ export function createGame(canvas, config, {
     // Tính độ cao hiện tại: lấy điểm gốc xuất phát (y = 388) trừ đi tọa độ hiện tại
     const currentHeight = Math.max(0, Math.round(388 - state.player.y));
 
+    // Tính khoảng cách dung nham còn cách người chơi bao nhiêu mét
+    const lavaDistance = state.world?.lava
+      ? Math.max(0, Math.round(state.world.lava.y - (state.player.y + state.player.height)))
+      : null;
+
     // Tính bảng xếp hạng so sánh người chơi với 4 Bot
     const ranking = getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots);
 
@@ -224,7 +246,8 @@ export function createGame(canvas, config, {
       placement: ranking.findIndex(item => item.id === 'player') + 1,
       ranking,
       player: state.player,
-      bots: state.bots
+      bots: state.bots,
+      lavaDistance,
     });
   }
 
@@ -236,9 +259,12 @@ export function createGame(canvas, config, {
   function endRun(reason, time) {
     if (isGameOver) return;
     isGameOver = true;
+    soundManager.stopBGM();
 
     const outcome = reason === 'goal' ? 'finished' : 'dnf';
-    maxHeight = Math.min(config?.finish_height ?? 3000, maxHeight);
+    if (typeof config?.finish_height === 'number' && !config?.isEndless) {
+      maxHeight = Math.min(config.finish_height, maxHeight);
+    }
     publishStats(time);
 
     const ranking = getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots);
@@ -285,6 +311,8 @@ export function createGame(canvas, config, {
     // 1. Tạo danh sách bệ đỡ cho cả chặng đường và rải bệ mây dọc bầu trời
     state.world = createWorld({ forIntro: true });
     fillGameplayPlatforms(state.world);
+    state.world.lava = createLavaState();
+    spawnPowerupsForPlatforms(state.world.platforms);
 
     // 2. Đặt camera ở trên cùng (Y = -2400)
     state.world.cameraY = Y_INTRO;
@@ -315,9 +343,12 @@ export function createGame(canvas, config, {
     lastStatsAt = -Infinity;
     nextBotIndex = 0;
     sound.playLaunch();
+    soundManager.playSFX('jump');
+    soundManager.playBGM();
 
     // Cung cấp vận tốc nhảy ban đầu cho người chơi để bắt đầu chặng đua
     state.player.vy = JUMP_VELOCITY;
+    state.world.lava = createLavaState();
   }
 
   /**
@@ -386,6 +417,7 @@ export function createGame(canvas, config, {
    */
   function returnToTitleMenu() {
     if (phase === 'returning_title' || phase === 'intro_title') return;
+    soundManager.stopBGM();
     returnFromY = state.world.cameraY;
     // Anchor the title above this frozen scene so it enters with the returning camera.
     state.ui.returnTitleWorldY = returnFromY + (state.ui.titleWorldY ?? TITLE_WORLD_Y);
@@ -421,7 +453,7 @@ export function createGame(canvas, config, {
       const titleWorldY = TITLE_WORLD_Y;
       const titleScreenY = titleWorldY - state.world.cameraY;
 
-      // Khung chữ nhật bao quanh nút "START" vẽ trên Canvas
+      // Khung chữ nhật bao quanh nút "START" vẽ trên Canvas (mở rộng đệm 15px để bấm nhạy hơn)
       const btnBounds = {
         x: canvas.width / 2 - 110,
         y: titleScreenY + 70,
@@ -429,13 +461,16 @@ export function createGame(canvas, config, {
         height: 50,
       };
 
-      // Nếu tọa độ click nằm trọn vẹn trong nút bấm -> Bắt đầu trượt camera xuống!
+      // Nếu tọa độ click nằm trong nút bấm -> Bắt đầu trượt camera xuống!
       if (
-        clickX >= btnBounds.x && clickX <= btnBounds.x + btnBounds.width &&
-        clickY >= btnBounds.y && clickY <= btnBounds.y + btnBounds.height
+        clickX >= btnBounds.x - 15 && clickX <= btnBounds.x + btnBounds.width + 15 &&
+        clickY >= btnBounds.y - 15 && clickY <= btnBounds.y + btnBounds.height + 15
       ) {
         startSlideDown();
       }
+    } else if (phase === 'intro_wait_input') {
+      // Khi đang đứng nhún chờ, click chuột vào canvas cũng cho phép phóng nhân vật bắt đầu leo
+      startLaunch();
     }
   }
 
@@ -687,18 +722,38 @@ export function createGame(canvas, config, {
       updateHorizontal(state.player, direction, dt);
       const prevPlayerX = state.player.x;
       handleScreenWrap(state.player, canvas.width);
-      if (Math.abs(state.player.x - prevPlayerX) > canvas.width / 2) {
-        sound.playPlayerWrap();
+
+      // 3. Cập nhật các bệ đỡ di động & sinh bệ vô hạn (không xóa bệ khi trôi khỏi màn hình)
+      const prevPlatformCount = state.world.platforms.length;
+      updatePlatforms(state.world, dt, { cullOffscreen: false });
+      if (state.world.platforms.length > prevPlatformCount) {
+        for (let i = prevPlatformCount; i < state.world.platforms.length; i++) {
+          const p = state.world.platforms[i];
+          if (p.type !== 'floor' && p.type !== 'finish' && p.type !== 'fragile') {
+            if (Math.random() < POWERUP_SPAWN_CHANCE) {
+              p.powerup = Math.random() < POWERUP_ROCKET_CHANCE ? POWERUP_TYPES.ROCKET : POWERUP_TYPES.SHIELD;
+            }
+          }
+        }
       }
-      updatePlatforms(state.world, dt);
 
-      // 4. Áp dụng trọng lực rơi tự do cho người chơi
-      applyPhysics(state.player, dt);
-      handlePlatformCollisions(state.player, state.world.platforms, (_player, platform) => {
-        sound.playPlayerBounce(platform.type);
-      });
+      // 4. Áp dụng hiệu lực vật phẩm bổ trợ (Powerups)
+      updatePowerups({ player: state.player, platforms: state.world.platforms, dt, soundManager });
 
-      // 6. Cập nhật trí tuệ nhân tạo (AI) và vật lý cho 4 Bot
+      // 5. Áp dụng trọng lực cho người chơi (Bỏ qua trọng lực khi Rocket đang bay)
+      if (state.player.powerup?.rocketTimer > 0) {
+        state.player.y += state.player.vy * dt;
+      } else {
+        applyPhysics(state.player, dt);
+      }
+
+      // 6. Kiểm tra va chạm dẫm lên bệ đỡ (AABB collision - chỉ nảy khi rơi xuống)
+      const landed = handlePlatformCollisions(state.player, state.world.platforms);
+      if (landed) {
+        soundManager.playSFX('jump');
+      }
+
+      // 7. Cập nhật trí tuệ nhân tạo (AI) và vật lý cho 4 Bot
       state.bots.forEach(bot => {
         if (bot.isDead) return;
 
@@ -718,32 +773,26 @@ export function createGame(canvas, config, {
         // Cập nhật tìm bệ thông minh của Bot
         updateBotAI(bot, state.world.platforms, dt, state.bots, state.world.cameraY);
 
-        // Trọng lực và va chạm bệ của Bot
-        bot.y += bot.vy * dt;
-        bot.vy += 1200 * dt;
-        if (bot.vy > 0) {
-          for (const p of state.world.platforms) {
-            if (p.broken) continue;
-            if (
-              bot.x + bot.width > p.x &&
-              bot.x < p.x + p.width &&
-              bot.y + bot.height >= p.y &&
-              bot.y + bot.height <= p.y + p.height + 15
-            ) {
-              bot.y = p.y - bot.height;
-              bot.vy = JUMP_VELOCITY * (p.type === 'bouncy' ? 1.45 : 1.0);
-              onBotBounce(bot, p);
-              sound.playBotBounce(p.type, bot.x / canvas.width);
-              break;
-            }
-          }
-        }
+        // Trọng lực, tiếp đất và cooldown dậm nhảy của Bot
+        updateBotPhysics(bot, state.world.platforms, dt);
 
-        // Nếu Bot rơi quá sâu khỏi đáy màn hình -> Đánh dấu tử nạn (isDead = true)
-        if (bot.y - state.world.cameraY > canvas.height + 100) {
+        // Chỉ đánh dấu tử nạn khi rơi quá sâu khỏi đáy màn hình nếu không có Dung nham (fallback mode).
+        // Khi có Dung nham (Lava): Bot rơi ra ngoài màn hình KHÔNG chết, chỉ tử nạn khi chạm vào Dung nham (xử lý trong updateLava).
+        if (!state.world?.lava && !config?.isEndless && bot.y - state.world.cameraY > canvas.height + 100) {
           bot.isDead = true;
           sound.playBotFall(bot.x / canvas.width);
         }
+      });
+
+      // 8. Cập nhật Dung nham dâng (Rising Lava)
+      updateLava({
+        lava: state.world.lava,
+        dt,
+        world: state.world,
+        player: state.player,
+        bots: state.bots,
+        soundManager,
+        onGameOver: (reason) => endRun(reason, time),
       });
 
       // 7. Tính toán độ cao leo được (m) và cập nhật kỷ lục cao nhất
@@ -754,19 +803,34 @@ export function createGame(canvas, config, {
       for (const bot of state.bots) bot.progress = Math.max(bot.progress || 0, Math.round(388 - bot.y));
       publishStats(time);
 
-      // 8. Camera cuộn theo độ cao của người chơi (Camera Sight Follow)
-      // Camera chỉ cuộn lên, không bao giờ tụt xuống
-      const sightRatio = config?.cameraRatio ?? CAMERA_SIGHT_RATIO ?? 0.60;
-      const cameraTargetY = state.player.y - canvas.height * sightRatio;
-      state.world.cameraY = Math.min(state.world.cameraY, cameraTargetY);
+      // 8. Camera cuộn theo độ cao của người chơi (Camera Follow 2D)
+      // Camera đi theo nhân vật cả khi leo lên lẫn khi rơi xuống (kéo màn xuống theo người chơi)
+      const topSightRatio = config?.cameraRatio ?? CAMERA_SIGHT_RATIO ?? 0.60;
+      const bottomSightRatio = 0.72; // Vùng đệm đáy: khi rơi xuống thì kéo camera hạ xuống theo nhân vật
+      const targetMinCameraY = state.player.y - canvas.height * topSightRatio;
+      const targetMaxCameraY = state.player.y - canvas.height * bottomSightRatio;
+
+      if (state.world.cameraY > targetMinCameraY) {
+        // Leo lên cao: camera kéo lên ngay lập tức để giữ góc nhìn thoáng phía trên
+        state.world.cameraY = targetMinCameraY;
+      } else if (state.world.cameraY < targetMaxCameraY) {
+        // Rơi xuống dưới: kéo camera xuống theo nhân vật
+        state.world.cameraY = targetMaxCameraY;
+      }
 
       // 9. Kiểm tra các điều kiện kết thúc ván đấu:
-      // - Chạm đỉnh vạch đích (mặc định 3000m)
-      if (maxHeight >= (config?.finish_height ?? 3000)) endRun('goal', time);
-      // - Hết thời gian cho phép (mặc định 180s)
-      else if (elapsedMs >= (config?.max_duration_ms ?? 180000)) endRun('timeout', time);
-      // - Rơi tụt xuống khỏi đáy màn hình
-      else if (state.player.y - state.world.cameraY > canvas.height + state.player.height) endRun('fall', time);
+      // - Chế độ Endless: không có vạch đích 3000m, game chỉ kết thúc khi bị Dung nham nuốt!
+      if (typeof config?.finish_height === 'number' && !config?.isEndless && maxHeight >= config.finish_height) {
+        endRun('goal', time);
+      }
+      // - Hết thời gian cho phép (chỉ áp dụng khi không phải chế độ endless):
+      else if (typeof config?.max_duration_ms === 'number' && !config?.isEndless && elapsedMs >= config.max_duration_ms) {
+        endRun('timeout', time);
+      }
+      // - Rơi tụt xuống khỏi đáy màn hình: Không kết thúc ván khi có dung nham (chỉ chết khi chạm Dung nham)
+      else if (!state.world?.lava && !config?.isEndless && state.player.y - state.world.cameraY > canvas.height + state.player.height) {
+        endRun('fall', time);
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -784,10 +848,13 @@ export function createGame(canvas, config, {
         wipeResetTriggered = true;
         state.world.cameraY = 0;
         state.world = createWorld({ soloStart: true });
+        state.world.lava = createLavaState();
+        spawnPowerupsForPlatforms(state.world.platforms);
         state.player.x = 300;
         state.player.y = 388;
         state.player.vx = 0;
         state.player.vy = WARMUP_HOP_VY;
+        state.player.powerup = createPowerupState();
         state.bots = [];
         nextBotIndex = 0;
         maxHeight = 0;
@@ -828,6 +895,7 @@ export function createGame(canvas, config, {
     destroy() {
       if (stopped) return;
       stopped = true;
+      soundManager.stopBGM();
       input.destroy();
       cancelAnimationFrame(frameId);
       if (canvas?.removeEventListener) {
@@ -902,6 +970,9 @@ export function createGame(canvas, config, {
       maxHeight,
       elapsedMs: Math.round(elapsedMs),
       ranking: getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots),
+      lavaDistance: state.world?.lava
+        ? Math.max(0, Math.round(state.world.lava.y - (state.player.y + state.player.height)))
+        : null,
     }),
   };
 }

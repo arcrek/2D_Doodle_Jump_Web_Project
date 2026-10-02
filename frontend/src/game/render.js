@@ -27,6 +27,7 @@ import {
 import { BOT_COLORS } from './index.js';
 import { SKIN_PATHS, BOT_PATHS, drawSprite, platformSprite } from './sprites.js';
 import { getEntranceJumpPosition } from './player.js';
+import { renderLava, renderPowerups } from './mechanics.js';
 
 const introArtwork = new WeakMap();
 
@@ -220,6 +221,16 @@ export function render(ctx, state) {
         ctx.fillStyle = player.skinColor || '#e8ad48';
         ctx.fillRect(displayPlayer.x, playerY, displayPlayer.width, displayPlayer.height);
       }
+    }
+  }
+
+  // ===========================================================================
+  // 4.5. HIỆU ỨNG VẬT PHẨM (POWERUPS) & DUNG NHAM (LAVA)
+  // ===========================================================================
+  if (!isMock) {
+    renderPowerups(ctx, world?.platforms, displayPlayer, cameraY, timeSec);
+    if (world?.lava) {
+      renderLava(ctx, world.lava, cameraY, width, height, timeSec, showPlayer ? displayPlayer : null);
     }
   }
 

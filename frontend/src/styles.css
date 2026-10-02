@@ -303,6 +303,26 @@ canvas {
   color: #1e293b;
 }
 
+.score-row-lava {
+  color: #c2410c;
+}
+
+.score-row-lava.is-warning {
+  color: #ea580c;
+  font-weight: 800;
+}
+
+.score-row-lava.is-danger {
+  color: #dc2626;
+  font-weight: 800;
+  animation: lavaPulse 0.5s steps(2, end) infinite;
+}
+
+@keyframes lavaPulse {
+  0% { transform: scale(1); color: #dc2626; }
+  100% { transform: scale(1.06); color: #991b1b; }
+}
+
 .floating-hud-ranking {
   position: absolute;
   top: 14px;
