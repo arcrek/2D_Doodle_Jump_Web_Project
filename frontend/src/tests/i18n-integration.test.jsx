@@ -1,4 +1,6 @@
 import React from 'react';
+import fs from 'node:fs';
+import path from 'node:path';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider, useTranslation } from '../i18n/I18nContext.jsx';
@@ -61,6 +63,38 @@ describe('i18n Integration', () => {
     expect(screen.getByText(/Controls:/i)).toBeTruthy();
     expect(getLocale()).toBe('en');
     expect(localStorage.getItem(STORAGE_KEY)).toBe('en');
+  });
+
+  it('guarantees language switcher clickability and prevents obstruction by comic alert', () => {
+    const { container } = render(
+      <I18nProvider>
+        <StartMenu
+          initialSkin="doodle"
+          onStartGame={vi.fn()}
+          onOpenLeaderboard={vi.fn()}
+          onOpenHistory={vi.fn()}
+        />
+      </I18nProvider>
+    );
+
+    const switcher = container.querySelector('.menu-lang-switcher');
+    expect(switcher).toBeTruthy();
+
+    const buttons = container.querySelectorAll('.menu-lang-switcher .lang-btn');
+    expect(buttons.length).toBe(3);
+
+    const alertImg = container.querySelector('.menu-comic-alert');
+    expect(alertImg).toBeTruthy();
+
+    const cssPath = path.resolve(__dirname, '../styles.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+    // menu-comic-alert must have pointer-events: none so it never intercepts clicks
+    expect(cssContent).toMatch(/\.menu-comic-alert\s*\{[^}]*pointer-events:\s*none;/);
+    // menu-comic-stage .menu-card must have higher z-index than comic alert
+    expect(cssContent).toMatch(/\.menu-comic-stage\s+\.menu-card\s*\{[^}]*z-index:\s*2;/);
+    // menu-lang-switcher must have elevated z-index
+    expect(cssContent).toMatch(/\.menu-lang-switcher\s*\{[^}]*z-index:\s*5;/);
   });
 
   it('updates TopBar and controls menu seamlessly on language switch', () => {
