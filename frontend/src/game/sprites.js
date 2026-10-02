@@ -21,9 +21,19 @@ const PLATFORM_PATHS = {
   fragile: '/images/skins/platform-fragile.svg',
 };
 
+export const POWERUP_PATHS = {
+  rocket: '/images/powerups/rocket.svg',
+  shield: '/images/powerups/shield.svg',
+};
+
 export function preloadSprites() {
   if (typeof Image === 'undefined') return;
-  for (const path of [...Object.values(SKIN_PATHS), ...Object.values(BOT_PATHS), ...Object.values(PLATFORM_PATHS)]) {
+  for (const path of [
+    ...Object.values(SKIN_PATHS),
+    ...Object.values(BOT_PATHS),
+    ...Object.values(PLATFORM_PATHS),
+    ...Object.values(POWERUP_PATHS),
+  ]) {
     if (sprites.has(path)) continue;
     const image = new Image();
     const sprite = { image, ready: false, failed: false };
@@ -35,6 +45,15 @@ export function preloadSprites() {
 }
 
 export function drawSprite(ctx, path, x, y, width, height, sourceRect) {
+  if (!path) return false;
+  if (!sprites.has(path) && typeof Image !== 'undefined') {
+    const image = new Image();
+    const sprite = { image, ready: false, failed: false };
+    sprites.set(path, sprite);
+    image.onload = () => { sprite.ready = true; };
+    image.onerror = () => { sprite.failed = true; };
+    image.src = path;
+  }
   const sprite = sprites.get(path);
   if (!sprite?.ready || typeof ctx.drawImage !== 'function') return false;
   if (sourceRect) {

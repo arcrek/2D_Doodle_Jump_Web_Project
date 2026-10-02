@@ -586,7 +586,7 @@ export function updatePlatforms(world, dt = 1 / 60, options = {}) {
 
   const cullOffscreen = typeof options === 'object' && options !== null && 'cullOffscreen' in options
     ? options.cullOffscreen
-    : true;
+    : false; // Bỏ cơ chế xóa bệ khi quá màn hình, chỉ xóa bệ khi dung nham dâng qua
   const highestEntityY = typeof options === 'number'
     ? options
     : (options?.highestEntityY ?? null);
@@ -632,7 +632,7 @@ export function updatePlatforms(world, dt = 1 / 60, options = {}) {
   const targetCeiling = highestEntityY !== null && Number.isFinite(highestEntityY)
     ? Math.min(world.cameraY, highestEntityY)
     : world.cameraY;
-  const spawnCeiling = targetCeiling - 250;
+  const spawnCeiling = targetCeiling - 650; // Sinh đón đầu trước 650px để khi Tên lửa bay tốc độ cao luôn có bệ đón
   const activeRng = world.rng ?? Math.random;
   const maxStepY = MAX_TIER_STEP;
 
