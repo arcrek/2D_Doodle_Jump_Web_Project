@@ -207,6 +207,7 @@ export function createGame(canvas, config, {
     bot.lastPlatformY = platform.y;
     state.bots.push(bot);
     nextBotIndex += 1;
+    sound.playBotEntrance();
   }
 
   function triggerRestartWipe() {
@@ -444,10 +445,16 @@ export function createGame(canvas, config, {
       while (nextBotIndex < BOT_JOIN_TIMES_MS.length && elapsedMs >= BOT_JOIN_TIMES_MS[nextBotIndex]) joinNextBot();
       const direction = Number(input.state.right) - Number(input.state.left);
       updateHorizontal(state.player, direction, dt);
+      const prevPlayerX = state.player.x;
       handleScreenWrap(state.player, canvas.width);
+      if (Math.abs(state.player.x - prevPlayerX) > canvas.width / 2) {
+        sound.playPlayerWrap();
+      }
       updatePlatforms(state.world, dt);
       applyPhysics(state.player, dt);
-      handlePlatformCollisions(state.player, state.world.platforms);
+      handlePlatformCollisions(state.player, state.world.platforms, (_player, platform) => {
+        sound.playPlayerBounce(platform.type);
+      });
 
       // Update Bots AI and physics
       state.bots.forEach(bot => {
@@ -479,12 +486,14 @@ export function createGame(canvas, config, {
               bot.y = p.y - bot.height;
               bot.vy = JUMP_VELOCITY * (p.type === 'bouncy' ? 1.45 : 1.0);
               onBotBounce(bot, p);
+              sound.playBotBounce(p.type, bot.x / canvas.width);
               break;
             }
           }
         }
         if (bot.y - state.world.cameraY > canvas.height + 100) {
           bot.isDead = true;
+          sound.playBotFall(bot.x / canvas.width);
         }
       });
 
