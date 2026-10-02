@@ -1,8 +1,6 @@
 // 1. CẤU HÌNH MÀN HÌNH & GAMEPLAY
 export const SCREEN_WIDTH = 960;
 export const SCREEN_HEIGHT = 540;
-export const TARGET_HEIGHT = 3000; // độ cao đích
-export const MAX_TIME = 180; // 180 giây
 export const HUD_SNAPSHOT = 100; // ms
 export const FIXED_DT = 1 / 60; // 60 FPS (0.0166s mỗi frame)
 export const CAMERA_SIGHT_RATIO = 0.60; // Vị trí nhân vật trên màn hình (60% từ trên xuống, hạ thấp camera gần đáy)

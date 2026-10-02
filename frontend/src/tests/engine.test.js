@@ -3,6 +3,7 @@ import { act, cleanup, render as mount } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createGame } from '../game/engine.js';
 import { SCREEN_HEIGHT } from '../game/world.js';
+import { LAVA_INITIAL_Y } from '../game/index.js';
 import { render } from '../game/render.js';
 import GameCanvas from '../components/GameCanvas.jsx';
 
@@ -254,7 +255,7 @@ it('wipe che kín trước khi thay thế thế giới và chỉ mở game sau k
   game.destroy();
 });
 
-it('rút ngắn đoạn trượt và nhịp chờ khi bật giảm chuyển động', () => {
+it('rút ngắn đoạn trượt và nhịp chờ khi bật giảm chuyển độment', () => {
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
   const game = createGame(canvas, {}, { enableIntro: true });
   tick(0);
@@ -318,16 +319,113 @@ it('bot vào ở giây 8/16/24/32 của lượt chơi, pause không tính giờ'
   game.destroy();
 });
 
-it('kết thúc một lần khi hết giờ và trả dữ liệu hợp lệ để lưu', () => {
+it('chế độ endless không bị giới hạn thời gian 180s và ghi nhận elapsedMs chính xác', () => {
   const onGameOver = vi.fn();
-  const game = createGame(canvas, { max_duration_ms: 100, finish_height: 3000 }, { onGameOver });
+  const game = createGame(canvas, { isEndless: true }, { onGameOver });
   tick(0);
-  tick(120);
+  // Mô phỏng chơi qua 185s (> 180s)
+  tick(185000);
+  expect(game.getPhase()).toBe('running');
+  expect(onGameOver).not.toHaveBeenCalled();
+
+  // Khi game kết thúc do chạm dung nham
+  const state = game.getState();
+  state.world.lava.y = state.player.y;
+  tick(185016);
+
   expect(game.getPhase()).toBe('finished');
   expect(onGameOver).toHaveBeenCalledTimes(1);
-  expect(onGameOver.mock.calls[0][0]).toMatchObject({ elapsedMs: 100, outcome: 'dnf', reason: 'timeout' });
-  tick(240);
-  expect(onGameOver).toHaveBeenCalledTimes(1);
+  expect(onGameOver.mock.calls[0][0]).toMatchObject({
+    outcome: 'dnf',
+    reason: 'lava',
+  });
+  expect(onGameOver.mock.calls[0][0].elapsedMs).toBeGreaterThanOrEqual(185000);
+  game.destroy();
+});
+
+it('engine resets lava state on triggerRestartWipe and returnToTitleMenu', () => {
+  const game = createGame(canvas, { isEndless: true }, { enableIntro: true });
+  tick(0);
+  const state = game.getState();
+  expect(state.world.lava).toBeDefined();
+
+  // Giả lập dung nham dâng cao
+  state.world.lava.y = -1000;
+  expect(state.world.lava.y).toBe(-1000);
+
+  // Kích hoạt restart wipe
+  game.triggerRestartWipe();
+  expect(state.world.lava.y).toBe(LAVA_INITIAL_Y);
+
+  // Giả lập tiếp tục dâng cao
+  state.world.lava.y = -2000;
+  expect(state.world.lava.y).toBe(-2000);
+
+  // Kích hoạt về menu
+  game.returnToTitleMenu();
+  expect(state.world.lava.y).toBe(LAVA_INITIAL_Y);
+
+  game.destroy();
+});
+
+it('engine cleans up lava state when returning_title completes', () => {
+  const game = createGame(canvas, { isEndless: true }, { enableIntro: false });
+  tick(0);
+  expect(game.getPhase()).toBe('running');
+  const state = game.getState();
+  game.returnToTitleMenu();
+  expect(game.getPhase()).toBe('returning_title');
+
+  // Đổi lava.y trong khi đang returning
+  state.world.lava.y = -500;
+  // Nhịp đầu để gán returnStartTime, nhịp sau để vượt qua RETURN_DURATION_MS (2400ms)
+  tick(100);
+  tick(2600);
+  expect(game.getPhase()).toBe('intro_title');
+  expect(state.world.lava.y).toBe(LAVA_INITIAL_Y);
+
+  game.destroy();
+});
+
+it('engine guards lavaDistance in snapshot and only exposes it in gameplay phases', () => {
+  // 1. Kiểm tra màn hình menu và intro: lavaDistance luôn là null
+  const introGame = createGame(canvas, { isEndless: true }, { enableIntro: true });
+  tick(0);
+  expect(introGame.getPhase()).toBe('intro_title');
+  expect(introGame.getSnapshot().lavaDistance).toBeNull();
+
+  introGame.startFromTitle();
+  tick(100);
+  tick(2500);
+  expect(introGame.getPhase()).toBe('intro_menu_delay');
+  expect(introGame.getSnapshot().lavaDistance).toBeNull();
+
+  tick(3000);
+  expect(introGame.getPhase()).toBe('ready');
+  expect(introGame.getSnapshot().lavaDistance).toBeNull();
+  introGame.destroy();
+
+  // 2. Kiểm tra gameplay phases: running, paused -> có số; wipe_reset, returning_title -> null
+  const game = createGame(canvas, { isEndless: true }, { enableIntro: false });
+  tick(0);
+  expect(game.getPhase()).toBe('running');
+  expect(typeof game.getSnapshot().lavaDistance).toBe('number');
+
+  game.togglePause();
+  expect(game.getPhase()).toBe('paused');
+  expect(typeof game.getSnapshot().lavaDistance).toBe('number');
+
+  game.togglePause();
+  expect(game.getPhase()).toBe('running');
+
+  game.triggerRestartWipe();
+  expect(game.getPhase()).toBe('wipe_reset');
+  expect(game.getSnapshot().lavaDistance).toBeNull();
+
+  game.returnToTitleMenu();
+  expect(game.getPhase()).toBe('returning_title');
+  expect(game.getSnapshot().lavaDistance).toBeNull();
+
   game.destroy();
 });
 

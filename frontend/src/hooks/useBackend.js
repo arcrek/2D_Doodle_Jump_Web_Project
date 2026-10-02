@@ -17,9 +17,8 @@ export function useBackend() {
           error: '',
           offline: true,
           config: {
-            rules_version: 'v1',
-            finish_height: 3000,
-            max_duration_ms: 180000,
+            rules_version: 'endless',
+            isEndless: true,
             cameraRatio: 0.60,
             gravity: 1200,
             jumpVelocity: -520,
