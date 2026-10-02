@@ -211,7 +211,7 @@ export function createGame(canvas, config, {
   let settleStartTime = null;        // Mốc thời gian dừng lại sau khi trượt tới đất
   let entranceStartTime = null;      // Mốc thời gian nhân vật bắt đầu nhảy vào sân
   let revealStartTime = null;        // Mốc thời gian bắt đầu hiện các bệ đỡ xung quanh
-  let nextBotIndex = 0;              // Chỉ số của Bot tiếp theo sẽ vào sân (0..3)
+  let nextBotIndex = enableIntro ? 0 : BOT_JOIN_TIMES_MS.length; // Chỉ số của Bot tiếp theo sẽ vào sân (0..3)
   let warmupStartTime = null;        // Mốc thời gian bắt đầu nhún nhảy nhẹ khởi động
   let returnStartTime = null;        // Mốc thời gian bắt đầu trượt ngược lên trời
   let returnFromY = 0;               // Tọa độ camera lúc bấm quay về tiêu đề
@@ -261,8 +261,10 @@ export function createGame(canvas, config, {
     isGameOver = true;
     soundManager.stopBGM();
 
-    const outcome = reason === 'goal' ? 'finished' : 'dnf';
-    if (typeof config?.finish_height === 'number' && !config?.isEndless) {
+    const isEndless = Boolean(config?.isEndless || config?.finish_height == null);
+    const finishHeight = config?.finish_height ?? 3000;
+    const outcome = (!isEndless && (reason === 'goal' || maxHeight >= finishHeight)) ? 'finished' : 'dnf';
+    if (!isEndless && typeof config?.finish_height === 'number') {
       maxHeight = Math.min(config.finish_height, maxHeight);
     }
     publishStats(time);
@@ -274,12 +276,17 @@ export function createGame(canvas, config, {
     if (outcome === 'finished') sound.playLaunch();
     else sound.playGameOver();
 
+    const elapsed = Math.round(elapsedMs);
+    const validElapsed = isEndless
+      ? Math.max(1, elapsed)
+      : Math.max(1, Math.min(config?.max_duration_ms ?? 180000, elapsed));
+
     // Báo kết quả cuối cùng cho React Page lưu vào Backend SQLite
     onGameOver?.({
       finalHeight: maxHeight,
       finalMaxHeight: maxHeight,
-      elapsedMs: Math.max(1, Math.min(config?.max_duration_ms ?? 180000, Math.round(elapsedMs))),
-      placement: ranking.findIndex(item => item.id === 'player') + 1,
+      elapsedMs: validElapsed,
+      placement: Math.max(1, Math.min(5, ranking.findIndex(item => item.id === 'player') + 1)),
       outcome,
       reason,
       ranking
@@ -778,7 +785,7 @@ export function createGame(canvas, config, {
 
         // Chỉ đánh dấu tử nạn khi rơi quá sâu khỏi đáy màn hình nếu không có Dung nham (fallback mode).
         // Khi có Dung nham (Lava): Bot rơi ra ngoài màn hình KHÔNG chết, chỉ tử nạn khi chạm vào Dung nham (xử lý trong updateLava).
-        if (!state.world?.lava && !config?.isEndless && bot.y - state.world.cameraY > canvas.height + 100) {
+        if (!state.world?.lava && bot.y - state.world.cameraY > canvas.height + 100) {
           bot.isDead = true;
           sound.playBotFall(bot.x / canvas.width);
         }
@@ -819,16 +826,14 @@ export function createGame(canvas, config, {
       }
 
       // 9. Kiểm tra các điều kiện kết thúc ván đấu:
-      // - Chế độ Endless: không có vạch đích 3000m, game chỉ kết thúc khi bị Dung nham nuốt!
-      if (typeof config?.finish_height === 'number' && !config?.isEndless && maxHeight >= config.finish_height) {
+      const isEndless = Boolean(config?.isEndless || config?.finish_height == null);
+      if (!isEndless && typeof config?.finish_height === 'number' && maxHeight >= config.finish_height) {
         endRun('goal', time);
       }
-      // - Hết thời gian cho phép (chỉ áp dụng khi không phải chế độ endless):
-      else if (typeof config?.max_duration_ms === 'number' && !config?.isEndless && elapsedMs >= config.max_duration_ms) {
+      else if (!isEndless && typeof config?.max_duration_ms === 'number' && elapsedMs >= config.max_duration_ms) {
         endRun('timeout', time);
       }
-      // - Rơi tụt xuống khỏi đáy màn hình: Không kết thúc ván khi có dung nham (chỉ chết khi chạm Dung nham)
-      else if (!state.world?.lava && !config?.isEndless && state.player.y - state.world.cameraY > canvas.height + state.player.height) {
+      else if (!state.world?.lava && state.player.y - state.world.cameraY > canvas.height + state.player.height) {
         endRun('fall', time);
       }
     }

@@ -427,7 +427,7 @@ export function GameOverModal({
           /* TRƯỜNG HỢP 2: KẾT THÚC LƯỢT CHƠI (FINISHED) */
           <>
             <h2 className="modal-title">{outcome === 'finished' ? '🏁 Về đích!' : 'Kết thúc lượt chơi'}</h2>
-            <p className="modal-subtitle">{reason === 'lava' ? 'Bạn đã bị dung nham nuốt chửng!' : reason === 'timeout' ? 'Đã hết thời gian.' : reason === 'fall' ? 'Bạn đã rơi khỏi màn chơi.' : 'Chúc mừng bạn đã chạm đích!'}</p>
+            <p className="modal-subtitle">{outcome === 'finished' ? 'Chúc mừng bạn đã chạm đích!' : reason === 'lava' ? 'Bạn đã bị dung nham nuốt chửng!' : reason === 'timeout' ? 'Đã hết thời gian.' : reason === 'fall' ? 'Bạn đã rơi khỏi màn chơi.' : 'Bạn đã kết thúc lượt chơi.'}</p>
             {/* Tóm tắt thành tích ván đấu */}
             <div className="stats-summary">
               <div className="stat-box highlight">

@@ -1,6 +1,6 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
-from ..rules import RULES
+from ..rules import RULES, ALL_RULES
 
 config_api = Blueprint("config", __name__)
 
@@ -12,4 +12,7 @@ def health():
 
 @config_api.get("/api/config")
 def config():
+    version = request.args.get("rules_version")
+    if version and version in ALL_RULES:
+        return jsonify(ALL_RULES[version])
     return jsonify(RULES)

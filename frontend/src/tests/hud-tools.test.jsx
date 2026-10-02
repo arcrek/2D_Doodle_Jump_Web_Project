@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { TopBar } from '../components/HUD.jsx';
+import { TopBar, GameOverModal } from '../components/HUD.jsx';
 
 afterEach(cleanup);
 
@@ -17,4 +17,26 @@ it('reveals game actions through the hamburger and closes after an action', () =
   fireEvent.click(screen.getByRole('button', { name: 'Tạm dừng hoặc tiếp tục ván chơi' }));
   expect(pause).toHaveBeenCalledTimes(1);
   expect(toggle.getAttribute('aria-expanded')).toBe('false');
+});
+
+it('renders GameOverModal with death context and achieved height in endless mode', () => {
+  render(
+    <GameOverModal
+      phase="finished"
+      height={3500}
+      elapsedMs={35000}
+      placement={1}
+      nickname="Bạn"
+      outcome="dnf"
+      reason="lava"
+      save={{ status: 'saved', message: 'Đã lưu kết quả.' }}
+      onResume={vi.fn()}
+      onRestart={vi.fn()}
+      onExitToMenu={vi.fn()}
+    />
+  );
+  expect(screen.getByText('Kết thúc lượt chơi')).toBeTruthy();
+  expect(screen.getByText('Bạn đã bị dung nham nuốt chửng!')).toBeTruthy();
+  expect(screen.getByText('3500m')).toBeTruthy();
+  expect(screen.getByText('Đã lưu kết quả.')).toBeTruthy();
 });
