@@ -367,6 +367,7 @@ export function createGame(canvas, config, {
     bot.lastPlatformY = platform.y;
     state.bots.push(bot);
     nextBotIndex += 1;
+    sound.playBotEntrance();
   }
 
   /**
@@ -684,18 +685,18 @@ export function createGame(canvas, config, {
       // 1. Tính toán hướng di chuyển ngang của người chơi (A/D hoặc phím mũi tên)
       const direction = Number(input.state.right) - Number(input.state.left);
       updateHorizontal(state.player, direction, dt);
-
-      // 2. Xử lý xuyên viền màn hình (Screen Wrap: đi ra mép trái xuất hiện mép phải)
+      const prevPlayerX = state.player.x;
       handleScreenWrap(state.player, canvas.width);
-
-      // 3. Cập nhật các bệ đỡ di động (Moving Platforms)
+      if (Math.abs(state.player.x - prevPlayerX) > canvas.width / 2) {
+        sound.playPlayerWrap();
+      }
       updatePlatforms(state.world, dt);
 
       // 4. Áp dụng trọng lực rơi tự do cho người chơi
       applyPhysics(state.player, dt);
-
-      // 5. Kiểm tra va chạm dẫm lên bệ đỡ (AABB collision - chỉ nảy khi rơi xuống)
-      handlePlatformCollisions(state.player, state.world.platforms);
+      handlePlatformCollisions(state.player, state.world.platforms, (_player, platform) => {
+        sound.playPlayerBounce(platform.type);
+      });
 
       // 6. Cập nhật trí tuệ nhân tạo (AI) và vật lý cho 4 Bot
       state.bots.forEach(bot => {
@@ -732,6 +733,7 @@ export function createGame(canvas, config, {
               bot.y = p.y - bot.height;
               bot.vy = JUMP_VELOCITY * (p.type === 'bouncy' ? 1.45 : 1.0);
               onBotBounce(bot, p);
+              sound.playBotBounce(p.type, bot.x / canvas.width);
               break;
             }
           }
@@ -740,6 +742,7 @@ export function createGame(canvas, config, {
         // Nếu Bot rơi quá sâu khỏi đáy màn hình -> Đánh dấu tử nạn (isDead = true)
         if (bot.y - state.world.cameraY > canvas.height + 100) {
           bot.isDead = true;
+          sound.playBotFall(bot.x / canvas.width);
         }
       });
 
