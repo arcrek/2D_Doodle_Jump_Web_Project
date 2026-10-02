@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 760" preserveAspectRatio="none">
+  <defs>
+    <filter id="hand-ink" x="-4%" y="-4%" width="108%" height="108%">
+      <feTurbulence type="fractalNoise" baseFrequency=".065" numOctaves="2" seed="19" result="paper"/>
+      <feDisplacementMap in="SourceGraphic" in2="paper" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <pattern id="dots" width="19" height="19" patternUnits="userSpaceOnUse" patternTransform="rotate(-9)">
+      <path d="M3 1Q7 0 8 4Q8 8 4 8Q0 7 1 3Z" fill="#29271e" opacity=".3"/>
+      <path d="M13 11Q17 10 18 14Q17 18 14 17Q10 17 11 13Z" fill="#29271e" opacity=".24"/>
+    </pattern>
+    <pattern id="pencil" width="26" height="23" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
+      <path d="M2 2 4 18M10 4 11 20M20 0 19 15" fill="none" stroke="#fff0c3" stroke-width="1.2" opacity=".3"/>
+    </pattern>
+  </defs>
+  <g filter="url(#hand-ink)">
+  <path d="M320 10 355 83 412 35 411 118 509 68 485 170 601 128 544 236 629 252 567 316 634 377 566 412 621 489 542 492 588 606 487 573 498 706 409 652 366 746 319 687 246 750 234 658 134 710 157 610 51 650 99 544 13 516 78 445 8 386 76 341 16 257 103 265 47 142 150 186 132 62 230 119 262 20 293 89Z" fill="#e5533e" stroke="#25271e" stroke-width="12" stroke-linejoin="miter" stroke-miterlimit="3"/>
+<path d="M320 10 355 83 412 35 411 118 509 68 485 170 601 128 544 236 629 252 567 316 634 377 566 412 621 489 542 492 588 606 487 573 498 706 409 652 366 746 319 687 246 750 234 658 134 710 157 610 51 650 99 544 13 516 78 445 8 386 76 341 16 257 103 265 47 142 150 186 132 62 230 119 262 20 293 89Z" fill="url(#dots)"/>
+<path d="M320 10 355 83 412 35 411 118 509 68 485 170 601 128 544 236 629 252 567 316 634 377 566 412 621 489 542 492 588 606 487 573 498 706 409 652 366 746 319 687 246 750 234 658 134 710 157 610 51 650 99 544 13 516 78 445 8 386 76 341 16 257 103 265 47 142 150 186 132 62 230 119 262 20 293 89Z" fill="url(#pencil)"/>
+  <path d="M319 52 349 136 393 93 395 164 464 125 448 213 544 183 498 282 586 286 524 339 588 377 525 402 570 464 500 463 534 551 458 530 459 646 391 605 357 693 316 636 264 687 263 607 185 651 200 562 105 592 141 513 62 492 121 432 60 386 122 350 63 285 146 302 100 205 184 236 177 130 256 170 274 79 299 147Z" fill="#ffe595" stroke="#25271e" stroke-width="7" stroke-linejoin="miter" stroke-miterlimit="3"/>
+  <path d="M319 52 349 136 393 93 395 164 464 125 448 213 544 183 498 282 586 286 524 339 588 377 525 402 570 464 500 463 534 551 458 530 459 646 391 605 357 693 316 636 264 687 263 607 185 651 200 562 105 592 141 513 62 492 121 432 60 386 122 350 63 285 146 302 100 205 184 236 177 130 256 170 274 79 299 147Z" fill="url(#dots)"/>
+  </g>
+</svg>

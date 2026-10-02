@@ -44,12 +44,13 @@ it('creates a persistent result with placement when a run ends', () => {
   expect(state.result.placement).toBeLessThanOrEqual(3);
 });
 
-it('uses the selected doodle skin when starting from the menu', () => {
+it('keeps the profile skin without showing a skin selector in the menu', () => {
   const onStartGame = vi.fn();
-  render(<StartMenu config={config} onStartGame={onStartGame}
+  render(<StartMenu initialSkin="purple" onStartGame={onStartGame}
     onOpenLeaderboard={() => {}} onOpenHistory={() => {}} />);
   fireEvent.change(screen.getByLabelText(/Tên người chơi/), { target: { value: 'Vinh' } });
-  fireEvent.change(screen.getByLabelText(/Trang phục/), { target: { value: 'purple' } });
+  expect(screen.queryByLabelText(/Trang phục/)).toBeNull();
+  expect(screen.getByText(/Cách điều khiển/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /BẮT ĐẦU CHƠI/ }));
   expect(onStartGame).toHaveBeenCalledWith({ nickname: 'Vinh', skinId: 'purple' });
 });

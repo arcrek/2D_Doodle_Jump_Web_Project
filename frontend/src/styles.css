@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Doodle Hand';
+  src: url('/fonts/PatrickHand-Regular.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   --text-main: #443e35;
   --bg-main: #eee7dc;
@@ -389,7 +397,64 @@ canvas {
   place-content: center;
   z-index: 20;
   padding: 16px;
-  animation: fadeIn 0.2s ease-out;
+  isolation: isolate;
+  animation: menuBackdropIn 180ms ease-out both;
+}
+
+.menu-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: repeating-conic-gradient(from -8deg at 50% 50%, transparent 0deg 13deg, rgb(255 243 179 / 65%) 13deg 15deg, transparent 15deg 25deg);
+  mask-image: radial-gradient(ellipse at center, transparent 28%, black 58%, transparent 95%);
+  animation: menuComicImpact 720ms ease-out both;
+}
+
+.menu-comic-stage {
+  position: relative;
+  isolation: isolate;
+  width: min(90vw, 420px);
+  max-width: calc(100vw - 32px);
+}
+
+.menu-comic-stage .menu-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.menu-comic-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% + 140px);
+  height: calc(100% + 140px);
+  max-width: none;
+  pointer-events: none;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  animation: menuBurstIn 650ms cubic-bezier(.2, .8, .25, 1) backwards;
+}
+
+.menu-comic-burst > svg { display: block; width: 100%; height: 100%; }
+
+.menu-comic-alert {
+  position: absolute;
+  top: -43px;
+  right: -24px;
+  width: 100px;
+  height: 100px;
+  pointer-events: auto;
+  z-index: 2;
+  transform-origin: 28% 86%;
+}
+
+@keyframes menuBurstIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.5) rotate(-5deg); }
+  55% { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(1deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
 }
 
 .menu-card {
@@ -400,6 +465,28 @@ canvas {
   width: min(90vw, 420px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
   text-align: left;
+  transform-origin: center;
+  animation: menuPopupIn 680ms cubic-bezier(.2, .8, .25, 1) both;
+}
+
+@keyframes menuBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes menuPopupIn {
+  0% { opacity: 0; transform: translateY(48px) rotate(-6deg) scale(.62, .76); }
+  38% { opacity: 1; transform: translateY(-12px) rotate(2.5deg) scale(1.045, 1.07); }
+  58% { opacity: 1; transform: translateY(5px) rotate(-1.5deg) scale(1.025, .96); }
+  78% { opacity: 1; transform: translateY(-3px) rotate(.6deg) scale(.99, 1.015); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes menuComicImpact {
+  0%, 12% { opacity: 0; }
+  32% { opacity: .85; }
+  65% { opacity: .35; }
+  100% { opacity: 0; }
 }
 
 .menu-header {
@@ -777,6 +864,64 @@ body, main, .game-layout-container, .canvas-wrapper {
   box-shadow: 3px 4px 0 rgb(44 80 58 / 12%);
 }
 
+.topbar-wrapper { inset: 16px auto auto 14px; pointer-events: none; }
+.game-top-bar {
+  display: block; position: relative; width: 32px; height: 32px; min-height: 0;
+  margin: 0; padding: 0; border: 0; background: transparent; backdrop-filter: none;
+  pointer-events: auto; color: #34352f;
+}
+.pencil-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.doodle-menu-toggle {
+  position: relative; width: 32px; height: 32px; padding: 4px;
+  background: transparent; border: 0; color: #34352f; cursor: pointer;
+}
+.doodle-menu-lines { width: 100%; height: 100%; }
+.doodle-menu-toggle:hover { color: #1c5038; }
+.doodle-menu-toggle:focus-visible { outline: 2px dashed #24543b; outline-offset: 3px; }
+.doodle-tools {
+  position: absolute; top: 42px; left: 0; width: 246px; padding: 22px 22px 24px;
+  display: flex; flex-direction: column; gap: 12px; background: transparent; color: #34352f;
+  isolation: isolate;
+  font-family: 'Doodle Hand', 'Segoe UI', sans-serif; text-align: left;
+}
+.doodle-tools > .pencil-frame { z-index: -1; }
+.doodle-tools button { background: transparent; border: 0; color: inherit; cursor: pointer; font: inherit; }
+.doodle-tools button:hover { color: #24543b; }
+.doodle-tools-heading { display: flex; align-items: center; justify-content: space-between; }
+.doodle-tools-heading small { display: block; font: 10px 'Segoe UI', sans-serif; letter-spacing: .12em; color: #6d7062; }
+.doodle-tools-heading strong { display: block; font-size: 26px; font-weight: 400; line-height: 1.2; }
+.doodle-tools .doodle-tools-close { width: 32px; height: 32px; padding: 0; font: 26px 'Doodle Hand', sans-serif; align-self: flex-start; }
+.doodle-tools-time { display: flex; justify-content: space-between; color: #74766a; font-size: 14px; }
+.doodle-tools-time span { color: #34352f; font-variant-numeric: tabular-nums; }
+.doodle-tools-actions { display: flex; flex-direction: column; gap: 4px; }
+.doodle-tools .doodle-tool-action { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 8px 12px; text-align: left; font-size: 19px; }
+.doodle-tool-action > .pencil-frame { z-index: -1; }
+.doodle-tool-icon { width: 20px; height: 20px; flex-shrink: 0; animation: pencilTextBoil 1.17s steps(1, end) infinite; }
+.doodle-tool-action kbd { margin-left: auto; color: #807344; font: 10px 'Segoe UI', sans-serif; }
+.doodle-tool-action:hover span { transform: translateX(2px); }
+.doodle-tools-hint { display: flex; align-items: center; gap: 4px; padding-top: 8px; color: #797b6d; font-size: 12px; }
+.doodle-tools-hint kbd { font: 12px 'Doodle Hand', sans-serif; padding: 1px 4px; border: 1px solid #a4a496; border-radius: 2px 3px 1px 2px; }
+.doodle-tools-hint span { margin-left: 3px; }
+.floating-hud-score, .floating-hud-ranking {
+  background: transparent; backdrop-filter: none; border: 0; border-radius: 0; box-shadow: none;
+  color: #373831; font-family: 'Doodle Hand', 'Segoe UI', sans-serif;
+}
+.floating-hud-score { top: 16px; left: 54px; }
+.floating-hud-ranking { top: 16px; }
+.floating-ranking-header { border-bottom: 1px dashed #67675b; }
+.floating-score-row, .floating-ranking-header, .floating-ranking-item {
+  animation: pencilTextBoil 1.17s steps(1, end) infinite;
+}
+.floating-ranking-item:nth-child(2n) { animation-delay: -.37s; }
+.floating-ranking-item:nth-child(3n), .score-row-current { animation-delay: -.69s; }
+@keyframes pencilTextBoil {
+  0%, 100% { transform: translate(.25px, -.2px) rotate(-.2deg); opacity: .92; }
+  19% { transform: translate(-.4px, .25px) rotate(.15deg); opacity: .8; }
+  43% { transform: translate(.35px, .4px) rotate(-.1deg); opacity: 1; }
+  68% { transform: translate(-.2px, -.35px) rotate(.22deg); opacity: .88; }
+  87% { transform: translate(.4px, .1px) rotate(-.16deg); opacity: .96; }
+}
+
 .menu-overlay, .modal-backdrop {
   background: rgb(27 57 41 / 35%);
   backdrop-filter: blur(4px);
@@ -791,7 +936,129 @@ body, main, .game-layout-container, .canvas-wrapper {
   box-shadow: 7px 8px 0 rgb(20 58 37 / 22%);
 }
 
-.menu-card { padding: 20px 26px; }
+.menu-card {
+  padding: 20px 26px;
+  border-width: 3px;
+  border-radius: 14px 19px 11px 17px / 17px 12px 19px 13px;
+  box-shadow: 9px 11px 0 rgb(20 58 37 / 45%);
+}
+
+/* Comic caption panel: the outline is angled; form contents stay undistorted. */
+.menu-comic-stage .menu-card {
+  isolation: isolate;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 30px 28px 48px;
+}
+
+.menu-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: url('/images/menu-ink-panel.svg') center / 100% 100% no-repeat;
+}
+
+.doodle-result-card {
+  position: relative; isolation: isolate; padding: 32px;
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+  font-family: 'Doodle Hand', 'Segoe UI', sans-serif; color: #36372f;
+}
+.doodle-result-card > .pencil-frame,
+.doodle-result-card .stat-box > .pencil-frame,
+.doodle-result-card button > .pencil-frame { z-index: -1; }
+.doodle-result-card .modal-title { color: #303b30; }
+.doodle-result-card .stat-box {
+  position: relative; isolation: isolate; background: transparent;
+  border: 0; border-radius: 0; padding: 12px 8px;
+}
+.doodle-result-card .stat-box:nth-child(2) { transform: rotate(.8deg); }
+.doodle-result-card .stat-box:nth-child(3) { transform: rotate(-.6deg); }
+.doodle-result-card .stat-num { color: #344b38; }
+.doodle-result-card .modal-actions-column button {
+  position: relative; isolation: isolate; min-height: 50px;
+  background: transparent; border: 0; box-shadow: none; border-radius: 0;
+  color: #36372f; font-family: inherit; font-weight: bold;
+}
+.doodle-result-card .modal-actions-column button:hover { transform: rotate(-.6deg); }
+.doodle-result-card .modal-actions-column button:focus-visible { outline: 2px dashed #345d3d; outline-offset: 3px; }
+.doodle-result-card .modal-title, .doodle-result-card .modal-subtitle,
+.doodle-result-card .stat-box span, .doodle-result-card .save-status,
+.doodle-result-card button span { display: block; animation: pencilTextBoil 1.17s steps(1, end) infinite; }
+.doodle-result-card .stat-label, .doodle-result-card .modal-subtitle { animation-delay: -.43s; }
+.doodle-result-card button:nth-child(2) span { animation-delay: -.69s; }
+
+.menu-card::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  z-index: -1;
+  pointer-events: none;
+  clip-path: polygon(0 0, 100% 0, 100% 94%, 0 100%);
+  background: url('/images/menu-halftone-edge.svg') 0% 15% / 108% 108% no-repeat;
+  animation: menuHalftoneDrift 18s ease-in-out infinite alternate;
+}
+
+@keyframes menuHalftoneDrift {
+  0% { background-position: 0% 15%; background-size: 108% 108%; }
+  50% { background-position: 55% 60%; background-size: 113% 111%; }
+  100% { background-position: 100% 95%; background-size: 108% 108%; }
+}
+
+.menu-card .menu-game-title {
+  color: #25251f;
+  font-style: italic;
+  letter-spacing: .035em;
+  text-shadow: none;
+}
+
+.menu-card .form-label { width: fit-content; background: #fffef8; padding: 1px 4px; }
+
+.menu-card .menu-badge { background: #ffdf65; color: #25251f; border-radius: 0; }
+.menu-card .form-input, .menu-card .form-select {
+  border: 2px solid #25251f;
+  border-radius: 0;
+  background: #fffef8;
+}
+.menu-card .form-input { transform: rotate(-.45deg); border-radius: 2px 0 3px 0; }
+.menu-card .skin-preview {
+  border: 1px dashed #6b695f;
+  border-radius: 0;
+  background: #f6f2e7;
+  color: #25251f;
+}
+.menu-card .menu-controls-info {
+  border-radius: 0;
+  border: 2px solid #25251f;
+  border-left-width: 4px;
+  background: #fffef8;
+  transform: rotate(.65deg);
+  padding: 12px 10px;
+  margin: 20px 2px 16px;
+}
+.menu-card .menu-button-group button {
+  min-height: 52px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: url('/images/menu-ink-button.svg') center / 100% 100% no-repeat;
+  color: #25251f;
+  font-weight: 800;
+  letter-spacing: .025em;
+  padding: 12px 16px 17px;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+.menu-card .menu-button-group .btn-start {
+  background-image: url('/images/menu-ink-button-primary.svg');
+}
+.menu-card .menu-button-group .btn-leaderboard { background-image: url('/images/menu-ink-button-alt.svg'); }
+.menu-card .menu-button-group .btn-outline { width: 95%; margin-left: 3%; }
+.menu-card .menu-button-group button:hover { transform: translateY(-2px) rotate(-.5deg); filter: brightness(.97); }
+.menu-card .menu-button-group button:active { transform: translateY(1px) scale(.99); }
+.menu-card .menu-button-group button:focus-visible { outline: 3px solid #43785d; outline-offset: 3px; }
 .menu-header { margin-bottom: 12px; }
 .menu-game-title { font-family: 'Trebuchet MS', Arial, sans-serif; letter-spacing: .07em; }
 .menu-controls-info { margin: 10px 0; }
@@ -845,6 +1112,7 @@ body, main, .game-layout-container, .canvas-wrapper {
 
 @media (max-aspect-ratio: 4/3) {
   .menu-overlay, .modal-backdrop { position: fixed; z-index: 30; overflow-y: auto; }
+  .menu-overlay { overflow-x: hidden; }
   .menu-card, .modal-card { max-height: 90dvh; }
   .pill-hint { display: none; }
   .game-top-bar { padding: 0 5px; gap: 3px; }
@@ -854,7 +1122,16 @@ body, main, .game-layout-container, .canvas-wrapper {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .topbar-wrapper, .hud-floating-container, button, .menu-overlay, .modal-backdrop {
+  .doodle-result-card .modal-title, .doodle-result-card .modal-subtitle,
+  .doodle-result-card .stat-box span, .doodle-result-card .save-status,
+  .doodle-result-card button span { animation: none; }
+  .floating-score-row, .floating-ranking-header, .floating-ranking-item { animation: none; }
+  .menu-card::after { animation: none; background-position: 35% 45%; }
+  .menu-overlay::before { display: none; }
+  .menu-comic-burst { animation: none; }
+  .menu-comic-alert, .menu-comic-alert:hover { animation: none; }
+  .menu-comic-alert:hover { transform: scale(1.16); }
+  .topbar-wrapper, .hud-floating-container, button, .menu-overlay, .menu-card, .modal-backdrop {
     animation-duration: .01ms !important;
     transition-duration: .01ms !important;
   }
