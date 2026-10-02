@@ -7,6 +7,7 @@ import {
 } from './doodle-art.js';
 import { BOT_COLORS } from './index.js';
 import { SKIN_PATHS, BOT_PATHS, drawSprite, platformSprite } from './sprites.js';
+import { getEntranceJumpPosition } from './player.js';
 
 export function render(ctx, state) {
   const { player, world, bots = [], phase = 'running', ui = {} } = state;
@@ -122,9 +123,16 @@ export function render(ctx, state) {
   // 4. Vẽ nhân vật người chơi (Player) - Nguyên bản dev với skin màu
   const showPlayer = !['intro_title', 'intro_sliding', 'intro_platform', 'ready', 'returning_title'].includes(phase);
   const entranceProgress = Math.max(0, Math.min(1, ui.playerEntranceProgress ?? 0));
-  const displayPlayer = phase === 'intro_player'
-    ? { ...player, x: -player.width - 20 + (300 + player.width + 20) * entranceProgress,
-      y: 388 - Math.sin(Math.PI * entranceProgress) * 110 }
+  const entrancePos = phase === 'intro_player'
+    ? getEntranceJumpPosition(entranceProgress, {
+        playerWidth: player.width,
+        playerHeight: player.height,
+        targetX: 300,
+        targetY: 388,
+      })
+    : null;
+  const displayPlayer = entrancePos
+    ? { ...player, x: entrancePos.x, y: entrancePos.y }
     : player;
   const playerY = displayPlayer.y - cameraY;
   const playerSprite = SKIN_PATHS[player.skinId] || SKIN_PATHS.doodle;
