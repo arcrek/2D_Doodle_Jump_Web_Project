@@ -229,7 +229,8 @@ export function render(ctx, state) {
   // ===========================================================================
   if (!isMock) {
     renderPowerups(ctx, world?.platforms, displayPlayer, cameraY, timeSec);
-    if (world?.lava) {
+    const showLava = ['running', 'paused', 'finished', 'warmup_hop', 'wipe_reset'].includes(phase);
+    if (world?.lava && showLava) {
       renderLava(ctx, world.lava, cameraY, width, height, timeSec, showPlayer ? displayPlayer : null);
     }
   }

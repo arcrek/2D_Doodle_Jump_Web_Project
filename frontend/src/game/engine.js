@@ -231,7 +231,8 @@ export function createGame(canvas, config, {
     const currentHeight = Math.max(0, Math.round(388 - state.player.y));
 
     // Tính khoảng cách dung nham còn cách người chơi bao nhiêu mét
-    const lavaDistance = state.world?.lava
+    const isGameplayPhase = ['running', 'paused', 'finished', 'warmup_hop'].includes(phase);
+    const lavaDistance = (state.world?.lava && isGameplayPhase)
       ? Math.max(0, Math.round(state.world.lava.y - (state.player.y + state.player.height)))
       : null;
 
@@ -409,6 +410,7 @@ export function createGame(canvas, config, {
     setPhase('wipe_reset');
     wipeStartTime = null;
     wipeResetTriggered = false;
+    if (state.world) state.world.lava = createLavaState();
     sound.playWipe();
   }
 
@@ -418,6 +420,7 @@ export function createGame(canvas, config, {
   function returnToTitleMenu() {
     if (phase === 'returning_title' || phase === 'intro_title') return;
     soundManager.stopBGM();
+    if (state.world) state.world.lava = createLavaState();
     returnFromY = state.world.cameraY;
     // Anchor the title above this frozen scene so it enters with the returning camera.
     state.ui.returnTitleWorldY = returnFromY + (state.ui.titleWorldY ?? TITLE_WORLD_Y);
@@ -655,6 +658,7 @@ export function createGame(canvas, config, {
       if (progress >= 1) {
         state.world.cameraY = Y_INTRO;
         state.world.platforms = [];
+        if (state.world) state.world.lava = createLavaState();
         state.ui.platformReveal = 0;
         state.ui.revealProgress = 0;
         state.ui.motionBlurPx = 0;
@@ -965,14 +969,17 @@ export function createGame(canvas, config, {
     getState: () => state,
 
     // Chụp nhanh ảnh thống kê hiện tại
-    getSnapshot: () => ({
-      height: Math.max(0, Math.round(388 - state.player.y)),
-      maxHeight,
-      elapsedMs: Math.round(elapsedMs),
-      ranking: getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots),
-      lavaDistance: state.world?.lava
-        ? Math.max(0, Math.round(state.world.lava.y - (state.player.y + state.player.height)))
-        : null,
-    }),
+    getSnapshot: () => {
+      const isGameplayPhase = ['running', 'paused', 'finished', 'warmup_hop'].includes(phase);
+      return {
+        height: Math.max(0, Math.round(388 - state.player.y)),
+        maxHeight,
+        elapsedMs: Math.round(elapsedMs),
+        ranking: getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots),
+        lavaDistance: (state.world?.lava && isGameplayPhase)
+          ? Math.max(0, Math.round(state.world.lava.y - (state.player.y + state.player.height)))
+          : null,
+      };
+    },
   };
 }
