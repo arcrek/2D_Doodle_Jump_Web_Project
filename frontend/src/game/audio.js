@@ -6,13 +6,13 @@
 // Musical Tuning & Frequencies (Equal Temperament)
 const NOTES = {
   // Octave 2
-  C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, Gs2: 103.83, A2: 110.00, B2: 123.47,
+  C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, Bb2: 116.54, B2: 123.47,
   // Octave 3
-  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, Gs3: 207.65, A3: 220.00, B3: 246.94,
+  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08, B3: 246.94,
   // Octave 4
-  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, Gs4: 415.30, A4: 440.00, B4: 493.88,
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16, B4: 493.88,
   // Octave 5
-  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, Gs5: 830.61, A5: 880.00, B5: 987.77,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, Bb5: 932.33, B5: 987.77,
   // Octave 6
   C6: 1046.50, D6: 1174.66, E6: 1318.51, F6: 1396.91, G6: 1567.98, A6: 1760.00, B6: 1975.53,
 };
@@ -26,7 +26,7 @@ const LOOKAHEAD_SEC = 0.12;
 const SCHEDULE_INTERVAL_MS = 35;
 
 // =============================================================================
-// TRACK 1: MENU THEME (Outside Main Gameplay - Whimsical, Sunny, Laid-back)
+// TRACK 1: MENU THEME (Outside Main Gameplay - Whimsical, Sunny C Major, Laid-back)
 // =============================================================================
 
 const MENU_BASS_SCORE = {
@@ -161,124 +161,148 @@ const MENU_MELODY_SCORE = {
 };
 
 // =============================================================================
-// TRACK 2: GAMEPLAY THEME (Active Main Gameplay - High Energy, Driving, Bouncy)
+// TRACK 2: GAMEPLAY THEME (Active Main Gameplay - Sunny F Major, Bouncy, Soaring)
 // =============================================================================
 
+// Cartoon walking rubber bass in F Major (Steps 0 - 127)
 const GAMEPLAY_BASS_SCORE = {
-  // Bar 0: Am - driving 8th notes
-  0: NOTES.A2, 2: NOTES.A2, 4: NOTES.E3, 6: NOTES.A2, 8: NOTES.C3, 10: NOTES.D3, 12: NOTES.E3, 14: NOTES.G2,
-  // Bar 1: F
-  16: NOTES.F2, 18: NOTES.F2, 20: NOTES.C3, 22: NOTES.F2, 24: NOTES.A2, 26: NOTES.C3, 28: NOTES.F3, 30: NOTES.E2,
-  // Bar 2: C
-  32: NOTES.C3, 34: NOTES.C3, 36: NOTES.G2, 38: NOTES.C3, 40: NOTES.E3, 42: NOTES.G3, 44: NOTES.E3, 46: NOTES.B2,
-  // Bar 3: G
-  48: NOTES.G2, 50: NOTES.G2, 52: NOTES.D3, 54: NOTES.G2, 56: NOTES.B2, 58: NOTES.D3, 60: NOTES.G3, 62: NOTES.G2,
-  // Bar 4: Dm
-  64: NOTES.D3, 66: NOTES.D3, 68: NOTES.A2, 70: NOTES.D3, 72: NOTES.F3, 74: NOTES.A3, 76: NOTES.F3, 78: NOTES.C3,
-  // Bar 5: Em
-  80: NOTES.E2, 82: NOTES.E2, 84: NOTES.B2, 86: NOTES.E2, 88: NOTES.G2, 90: NOTES.B2, 92: NOTES.E3, 94: NOTES.D3,
-  // Bar 6: F
-  96: NOTES.F2, 98: NOTES.F2, 100: NOTES.C3, 102: NOTES.F2, 104: NOTES.A2, 106: NOTES.C3, 108: NOTES.F3, 110: NOTES.G2,
-  // Bar 7: E7
-  112: NOTES.E2, 114: NOTES.E2, 116: NOTES.B2, 118: NOTES.D3, 120: NOTES.E3, 122: NOTES.Gs2, 124: NOTES.B2, 126: NOTES.D3,
+  // Bar 0: F Major - buoyant takeoff
+  0: NOTES.F2, 4: NOTES.C3, 6: NOTES.F2, 8: NOTES.A2, 10: NOTES.C3, 12: NOTES.D3, 14: NOTES.E2,
+  // Bar 1: C Major - joyful bounce
+  16: NOTES.C3, 20: NOTES.G2, 22: NOTES.C3, 24: NOTES.E3, 26: NOTES.G3, 28: NOTES.E3, 30: NOTES.C3,
+  // Bar 2: Bb Major - soaring sky
+  32: NOTES.Bb2, 36: NOTES.F2, 38: NOTES.Bb2, 40: NOTES.D3, 42: NOTES.F3, 44: NOTES.D3, 46: NOTES.Bb2,
+  // Bar 3: C7 - turnaround roll
+  48: NOTES.C3, 52: NOTES.G2, 54: NOTES.C3, 56: NOTES.E3, 58: NOTES.G3, 60: NOTES.Bb3, 62: NOTES.C3,
+  // Bar 4: F Major - high altitude climb
+  64: NOTES.F2, 68: NOTES.C3, 70: NOTES.F3, 72: NOTES.A2, 74: NOTES.C3, 76: NOTES.F3, 78: NOTES.C3,
+  // Bar 5: Dm -> G - playful sprint
+  80: NOTES.D3, 84: NOTES.A2, 86: NOTES.D3, 88: NOTES.G2, 90: NOTES.D3, 92: NOTES.G3, 94: NOTES.B2,
+  // Bar 6: Bb -> C - rising anticipation
+  96: NOTES.Bb2, 100: NOTES.F2, 102: NOTES.Bb2, 104: NOTES.C3, 106: NOTES.G2, 108: NOTES.C3, 110: NOTES.E3,
+  // Bar 7: C7 - joyful flourish resolving back to Bar 0
+  112: NOTES.C3, 116: NOTES.G2, 118: NOTES.Bb2, 120: NOTES.C3, 122: NOTES.E3, 124: NOTES.G3, 126: NOTES.C3,
 };
 
-const GAMEPLAY_ARP_SCORE = {
-  // Bar 0 (Am)
-  0: NOTES.A4, 2: NOTES.C5, 4: NOTES.E5, 6: NOTES.A5, 8: NOTES.E5, 10: NOTES.C5, 12: NOTES.A4, 14: NOTES.C5,
-  // Bar 1 (F)
-  16: NOTES.F4, 18: NOTES.A4, 20: NOTES.C5, 22: NOTES.F5, 24: NOTES.C5, 26: NOTES.A4, 28: NOTES.F4, 30: NOTES.A4,
-  // Bar 2 (C)
-  32: NOTES.G4, 34: NOTES.C5, 36: NOTES.E5, 38: NOTES.G5, 40: NOTES.E5, 42: NOTES.C5, 44: NOTES.G4, 46: NOTES.C5,
-  // Bar 3 (G)
-  48: NOTES.G4, 50: NOTES.B4, 52: NOTES.D5, 54: NOTES.G5, 56: NOTES.D5, 58: NOTES.B4, 60: NOTES.G4, 62: NOTES.B4,
-  // Bar 4 (Dm)
-  64: NOTES.F4, 66: NOTES.A4, 68: NOTES.D5, 70: NOTES.F5, 72: NOTES.D5, 74: NOTES.A4, 76: NOTES.F4, 78: NOTES.A4,
-  // Bar 5 (Em)
-  80: NOTES.E4, 82: NOTES.G4, 84: NOTES.B4, 86: NOTES.E5, 88: NOTES.B4, 90: NOTES.G4, 92: NOTES.E4, 94: NOTES.G4,
-  // Bar 6 (F)
-  96: NOTES.F4, 98: NOTES.A4, 100: NOTES.C5, 102: NOTES.F5, 104: NOTES.C5, 106: NOTES.A4, 108: NOTES.F4, 110: NOTES.A4,
-  // Bar 7 (E7)
-  112: NOTES.E4, 114: NOTES.Gs4, 116: NOTES.B4, 118: NOTES.D5, 120: NOTES.B4, 122: NOTES.Gs4, 124: NOTES.E4, 126: NOTES.B4,
+// Playful offbeat staccato bounce chords (ska/marimba plucks on steps 2, 6, 10, 14)
+const GAMEPLAY_CHORD_SCORE = {
+  // Bar 0 (F)
+  2: [NOTES.A4, NOTES.C5, NOTES.F5], 6: [NOTES.A4, NOTES.C5, NOTES.F5],
+  10: [NOTES.A4, NOTES.C5, NOTES.F5], 14: [NOTES.A4, NOTES.C5, NOTES.F5],
+  // Bar 1 (C)
+  18: [NOTES.G4, NOTES.C5, NOTES.E5], 22: [NOTES.G4, NOTES.C5, NOTES.E5],
+  26: [NOTES.G4, NOTES.C5, NOTES.E5], 30: [NOTES.G4, NOTES.C5, NOTES.E5],
+  // Bar 2 (Bb)
+  34: [NOTES.F4, NOTES.Bb4, NOTES.D5], 38: [NOTES.F4, NOTES.Bb4, NOTES.D5],
+  42: [NOTES.F4, NOTES.Bb4, NOTES.D5], 46: [NOTES.F4, NOTES.Bb4, NOTES.D5],
+  // Bar 3 (C7)
+  50: [NOTES.G4, NOTES.Bb4, NOTES.E5], 54: [NOTES.G4, NOTES.Bb4, NOTES.E5],
+  58: [NOTES.G4, NOTES.Bb4, NOTES.E5], 62: [NOTES.G4, NOTES.Bb4, NOTES.E5],
+  // Bar 4 (F)
+  66: [NOTES.A4, NOTES.C5, NOTES.F5], 70: [NOTES.A4, NOTES.C5, NOTES.F5],
+  74: [NOTES.A4, NOTES.C5, NOTES.F5], 78: [NOTES.A4, NOTES.C5, NOTES.F5],
+  // Bar 5 (Dm -> G)
+  82: [NOTES.F4, NOTES.A4, NOTES.D5], 86: [NOTES.F4, NOTES.A4, NOTES.D5],
+  90: [NOTES.G4, NOTES.B4, NOTES.D5], 94: [NOTES.G4, NOTES.B4, NOTES.D5],
+  // Bar 6 (Bb -> C)
+  98: [NOTES.F4, NOTES.Bb4, NOTES.D5], 102: [NOTES.F4, NOTES.Bb4, NOTES.D5],
+  106: [NOTES.G4, NOTES.C5, NOTES.E5], 110: [NOTES.G4, NOTES.C5, NOTES.E5],
+  // Bar 7 (C7)
+  114: [NOTES.G4, NOTES.Bb4, NOTES.E5], 118: [NOTES.G4, NOTES.Bb4, NOTES.E5],
+  122: [NOTES.G4, NOTES.Bb4, NOTES.E5], 126: [NOTES.G4, NOTES.Bb4, NOTES.E5],
 };
 
+// Catchy, whistling marimba lead melody (Sunny, soaring, full of joyful leaps!)
 const GAMEPLAY_MELODY_SCORE = {
-  // Bar 0: Am - energetic launch
-  0: { freq: NOTES.E5, len: 2 },
-  3: { freq: NOTES.A5, len: 3 },
-  6: { freq: NOTES.B5, len: 2 },
-  8: { freq: NOTES.C6, len: 3 },
-  11: { freq: NOTES.B5, len: 2 },
-  13: { freq: NOTES.A5, len: 2 },
-  15: { freq: NOTES.B5, len: 1 },
+  // Bar 0 (F Major - playful jump takeoff)
+  0: { freq: NOTES.A5, len: 2 },
+  2: { freq: NOTES.C6, len: 2 },
+  4: { freq: NOTES.F6, len: 2 },
+  7: { freq: NOTES.C6, len: 1 },
+  8: { freq: NOTES.A5, len: 2 },
+  10: { freq: NOTES.G5, len: 1 },
+  11: { freq: NOTES.A5, len: 1 },
+  12: { freq: NOTES.C6, len: 2 },
+  14: { freq: NOTES.D6, len: 2 },
 
-  // Bar 1: F - soaring upwards
-  16: { freq: NOTES.C6, len: 2 },
-  19: { freq: NOTES.D6, len: 3 },
-  22: { freq: NOTES.C6, len: 2 },
-  24: { freq: NOTES.A5, len: 3 },
-  27: { freq: NOTES.F5, len: 2 },
-  29: { freq: NOTES.A5, len: 3 },
+  // Bar 1 (C Major - skipping bounce)
+  16: { freq: NOTES.E6, len: 2 },
+  18: { freq: NOTES.D6, len: 2 },
+  20: { freq: NOTES.C6, len: 2 },
+  23: { freq: NOTES.G5, len: 1 },
+  24: { freq: NOTES.A5, len: 2 },
+  26: { freq: NOTES.C6, len: 2 },
+  28: { freq: NOTES.D6, len: 2 },
+  30: { freq: NOTES.C6, len: 2 },
 
-  // Bar 2: C - bright peak
-  32: { freq: NOTES.G5, len: 2 },
-  35: { freq: NOTES.C6, len: 3 },
-  38: { freq: NOTES.D6, len: 2 },
-  40: { freq: NOTES.E6, len: 3 },
-  43: { freq: NOTES.D6, len: 2 },
-  45: { freq: NOTES.C6, len: 3 },
+  // Bar 2 (Bb Major - soaring climb into the clouds)
+  32: { freq: NOTES.D6, len: 2 },
+  34: { freq: NOTES.F6, len: 2 },
+  36: { freq: NOTES.G6, len: 2 },
+  39: { freq: NOTES.F6, len: 1 },
+  40: { freq: NOTES.D6, len: 2 },
+  42: { freq: NOTES.Bb5, len: 2 },
+  44: { freq: NOTES.C6, len: 2 },
+  46: { freq: NOTES.D6, len: 2 },
 
-  // Bar 3: G - turnaround
-  48: { freq: NOTES.D6, len: 3 },
-  51: { freq: NOTES.B5, len: 3 },
-  54: { freq: NOTES.G5, len: 2 },
-  56: { freq: NOTES.A5, len: 2 },
-  58: { freq: NOTES.B5, len: 2 },
-  60: { freq: NOTES.C6, len: 2 },
-  62: { freq: NOTES.D6, len: 2 },
+  // Bar 3 (C7 - bouncy roll)
+  48: { freq: NOTES.E6, len: 2 },
+  50: { freq: NOTES.C6, len: 2 },
+  52: { freq: NOTES.G6, len: 2 },
+  55: { freq: NOTES.E6, len: 1 },
+  56: { freq: NOTES.C6, len: 2 },
+  58: { freq: NOTES.D6, len: 2 },
+  60: { freq: NOTES.E6, len: 2 },
+  62: { freq: NOTES.G6, len: 2 },
 
-  // Bar 4: Dm - high sprint
-  64: { freq: NOTES.F6, len: 3 },
-  67: { freq: NOTES.E6, len: 2 },
-  69: { freq: NOTES.D6, len: 3 },
-  72: { freq: NOTES.A5, len: 2 },
-  74: { freq: NOTES.D6, len: 2 },
-  76: { freq: NOTES.F6, len: 2 },
-  78: { freq: NOTES.E6, len: 2 },
+  // Bar 4 (F Major - high altitude sprint)
+  64: { freq: NOTES.A6, len: 2 },
+  66: { freq: NOTES.F6, len: 2 },
+  68: { freq: NOTES.C6, len: 2 },
+  71: { freq: NOTES.D6, len: 1 },
+  72: { freq: NOTES.F6, len: 2 },
+  74: { freq: NOTES.A6, len: 2 },
+  76: { freq: NOTES.G6, len: 2 },
+  78: { freq: NOTES.F6, len: 2 },
 
-  // Bar 5: Em - fast leaps
-  80: { freq: NOTES.E6, len: 3 },
-  83: { freq: NOTES.D6, len: 2 },
-  85: { freq: NOTES.B5, len: 3 },
-  88: { freq: NOTES.G5, len: 2 },
-  90: { freq: NOTES.B5, len: 2 },
-  92: { freq: NOTES.D6, len: 2 },
-  94: { freq: NOTES.E6, len: 2 },
+  // Bar 5 (Dm -> G - playful detour)
+  80: { freq: NOTES.F6, len: 2 },
+  82: { freq: NOTES.D6, len: 2 },
+  84: { freq: NOTES.A5, len: 2 },
+  87: { freq: NOTES.B5, len: 1 },
+  88: { freq: NOTES.D6, len: 2 },
+  90: { freq: NOTES.G6, len: 2 },
+  92: { freq: NOTES.F6, len: 2 },
+  94: { freq: NOTES.D6, len: 2 },
 
-  // Bar 6: F - peak altitude climax
-  96: { freq: NOTES.F6, len: 2 },
-  98: { freq: NOTES.G6, len: 2 },
-  100: { freq: NOTES.A6, len: 3 },
-  103: { freq: NOTES.G6, len: 2 },
-  105: { freq: NOTES.F6, len: 3 },
-  108: { freq: NOTES.E6, len: 2 },
+  // Bar 6 (Bb -> C - rising summit)
+  96: { freq: NOTES.D6, len: 2 },
+  98: { freq: NOTES.F6, len: 2 },
+  100: { freq: NOTES.G6, len: 2 },
+  103: { freq: NOTES.A6, len: 1 },
+  104: { freq: NOTES.G6, len: 2 },
+  106: { freq: NOTES.E6, len: 2 },
+  108: { freq: NOTES.C6, len: 2 },
   110: { freq: NOTES.D6, len: 2 },
 
-  // Bar 7: E7 - suspense flourish resolving to Am
-  112: { freq: NOTES.E6, len: 3 },
-  115: { freq: NOTES.D6, len: 2 },
-  117: { freq: NOTES.B5, len: 3 },
-  120: { freq: NOTES.Gs5, len: 2 },
-  122: { freq: NOTES.B5, len: 2 },
-  124: { freq: NOTES.C6, len: 2 },
-  126: { freq: NOTES.B5, len: 2 },
+  // Bar 7 (C7 - joyful cartoon flourish turnaround)
+  112: { freq: NOTES.E6, len: 2 },
+  114: { freq: NOTES.G6, len: 2 },
+  116: { freq: NOTES.E6, len: 2 },
+  118: { freq: NOTES.C6, len: 2 },
+  120: { freq: NOTES.Bb5, len: 1 },
+  121: { freq: NOTES.C6, len: 1 },
+  122: { freq: NOTES.D6, len: 1 },
+  123: { freq: NOTES.E6, len: 1 },
+  124: { freq: NOTES.G6, len: 2 },
+  126: { freq: NOTES.C6, len: 2 },
 };
 
 class SoundEngine {
   constructor() {
     this.ctx = null;
     this.enabled = true;
-    this.bgmVolume = 0.12;
+    this.bgmVolume = 0.11;
     this.bgmGain = null;
     this.menuGain = null;
     this.gameplayGain = null;
@@ -733,35 +757,35 @@ class SoundEngine {
     }
 
     // =========================================================================
-    // 2. SCHEDULE GAMEPLAY THEME (Active Main Gameplay - High Energy & Driving)
+    // 2. SCHEDULE GAMEPLAY THEME (Active Main Gameplay - Sunny F Major Bouncy)
     // =========================================================================
     if (isGameplayAudible) {
-      // Driving 8th-note Synth Bass
+      // Bouncy Rubber Upright Bass
       const gpBass = GAMEPLAY_BASS_SCORE[step];
       if (gpBass) this.playGameplayBass(gpBass, time);
 
-      // Sparkling Arpeggio Plucks
-      const gpArp = GAMEPLAY_ARP_SCORE[step];
-      if (gpArp) this.playGameplayArp(gpArp, time);
+      // Offbeat Marimba Pluck Chords (bouncy ska skank)
+      const gpChord = GAMEPLAY_CHORD_SCORE[step];
+      if (gpChord) this.playGameplayChord(gpChord, time);
 
-      // Heroic Upbeat Lead Melody
+      // Catchy Whistling Lead Melody
       const gpMelody = GAMEPLAY_MELODY_SCORE[step];
       if (gpMelody) this.playGameplayMelody(gpMelody.freq, gpMelody.len, time);
 
-      // Driving Percussion (Four-on-the-floor kick, snappy snare/rim, 16th rolling hats)
+      // Light Groovy Percussion (Woodblock downbeat, rim on 4/12, light shaker)
       const stepInBar = step % 16;
-      if (stepInBar === 0 || stepInBar === 4 || stepInBar === 8 || stepInBar === 12) {
+      if (stepInBar === 0 || stepInBar === 8) {
         this.playGameplayKick(time);
       }
       if (stepInBar === 4 || stepInBar === 12) {
-        this.playGameplayRim(time, 0.08);
+        this.playGameplayRim(time, 0.07);
       }
-      if (stepInBar % 2 === 0) {
+      if (stepInBar === 2 || stepInBar === 6 || stepInBar === 10 || stepInBar === 14) {
         this.playGameplayShaker(time);
       }
       // Drum fills at ends of measure 4 and 8
-      if (step === 60 || step === 61 || step === 62 || step === 63 || step === 124 || step === 125 || step === 126 || step === 127) {
-        this.playGameplayRim(time, 0.05);
+      if (step === 61 || step === 62 || step === 63 || step === 125 || step === 126 || step === 127) {
+        this.playGameplayRim(time, 0.045);
       }
     }
   }
@@ -920,7 +944,7 @@ class SoundEngine {
   }
 
   // =========================================================================
-  // GAMEPLAY THEME INSTRUMENTS (Punchy, Driving, Exciting)
+  // GAMEPLAY THEME INSTRUMENTS (Warm, Bouncy, Joyful F Major)
   // =========================================================================
 
   playGameplayKick(time) {
@@ -929,26 +953,26 @@ class SoundEngine {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(155, time);
-      osc.frequency.exponentialRampToValueAtTime(46, time + 0.065);
-      gain.gain.setValueAtTime(0.10, time);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.065);
+      osc.frequency.setValueAtTime(140, time);
+      osc.frequency.exponentialRampToValueAtTime(42, time + 0.060);
+      gain.gain.setValueAtTime(0.088, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.060);
       osc.connect(gain);
       gain.connect(this.gameplayGain);
       osc.start(time);
-      osc.stop(time + 0.07);
+      osc.stop(time + 0.065);
       osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     } catch (_) {}
   }
 
-  playGameplayRim(time, customGain = 0.08) {
+  playGameplayRim(time, customGain = 0.07) {
     if (!this.ctx || !this.gameplayGain) return;
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(580, time);
-      osc.frequency.exponentialRampToValueAtTime(280, time + 0.045);
+      osc.frequency.setValueAtTime(540, time);
+      osc.frequency.exponentialRampToValueAtTime(260, time + 0.045);
       gain.gain.setValueAtTime(customGain, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
       osc.connect(gain);
@@ -966,9 +990,9 @@ class SoundEngine {
       noise.buffer = this.noiseBuffer;
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'highpass';
-      filter.frequency.setValueAtTime(6000, time);
+      filter.frequency.setValueAtTime(5600, time);
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.026, time);
+      gain.gain.setValueAtTime(0.024, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.022);
       noise.connect(filter);
       filter.connect(gain);
@@ -990,55 +1014,51 @@ class SoundEngine {
       osc.frequency.setValueAtTime(freq, time);
 
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(500, time);
-      filter.Q.setValueAtTime(2.0, time);
+      filter.frequency.setValueAtTime(420, time);
 
       gain.gain.setValueAtTime(0.001, time);
-      gain.gain.linearRampToValueAtTime(0.14, time + 0.010);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+      gain.gain.linearRampToValueAtTime(0.125, time + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
 
       osc.connect(filter);
       filter.connect(gain);
       gain.connect(this.gameplayGain);
 
       osc.start(time);
-      osc.stop(time + 0.15);
+      osc.stop(time + 0.17);
       osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
     } catch (_) {}
   }
 
-  playGameplayArp(freq, time) {
+  playGameplayChord(frequencies, time) {
     if (!this.ctx || !this.gameplayGain) return;
     try {
-      const osc = this.ctx.createOscillator();
       const filter = this.ctx.createBiquadFilter();
-      const gain = this.ctx.createGain();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1600, time);
+      filter.connect(this.gameplayGain);
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, time);
-
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1700, time);
-      filter.Q.setValueAtTime(2.5, time);
-
-      gain.gain.setValueAtTime(0.001, time);
-      gain.gain.linearRampToValueAtTime(0.040, time + 0.006);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.gameplayGain);
-
-      osc.start(time);
-      osc.stop(time + 0.09);
-      osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
+      frequencies.forEach(freq => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0.001, time);
+        gain.gain.linearRampToValueAtTime(0.032, time + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+        osc.connect(gain);
+        gain.connect(filter);
+        osc.start(time);
+        osc.stop(time + 0.10);
+        osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+      });
     } catch (_) {}
   }
 
   playGameplayMelody(freq, stepDuration, time) {
     if (!this.ctx || !this.gameplayGain) return;
     try {
-      const durationSec = stepDuration * SIXTEENTH_TIME * 0.90;
+      const durationSec = stepDuration * SIXTEENTH_TIME * 0.92;
       const osc = this.ctx.createOscillator();
       const oscOvertone = this.ctx.createOscillator();
       const filter = this.ctx.createBiquadFilter();
@@ -1046,8 +1066,8 @@ class SoundEngine {
       const gainOvertone = this.ctx.createGain();
 
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2600, time);
-      filter.Q.setValueAtTime(2.2, time);
+      filter.frequency.setValueAtTime(2400, time);
+      filter.Q.setValueAtTime(1.8, time);
 
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, time);
@@ -1056,12 +1076,12 @@ class SoundEngine {
       oscOvertone.frequency.setValueAtTime(freq * 2, time);
 
       gain.gain.setValueAtTime(0.001, time);
-      gain.gain.linearRampToValueAtTime(0.082, time + 0.005);
+      gain.gain.linearRampToValueAtTime(0.076, time + 0.006);
       gain.gain.exponentialRampToValueAtTime(0.001, time + durationSec);
 
       gainOvertone.gain.setValueAtTime(0.001, time);
-      gainOvertone.gain.linearRampToValueAtTime(0.025, time + 0.005);
-      gainOvertone.gain.exponentialRampToValueAtTime(0.001, time + durationSec * 0.65);
+      gainOvertone.gain.linearRampToValueAtTime(0.020, time + 0.006);
+      gainOvertone.gain.exponentialRampToValueAtTime(0.001, time + durationSec * 0.6);
 
       osc.connect(filter);
       oscOvertone.connect(filter);
@@ -1260,6 +1280,7 @@ class SoundEngine {
         osc.frequency.setValueAtTime(190, now);
         osc.frequency.exponentialRampToValueAtTime(620, now + 0.28);
 
+        // Vibrato wobble LFO
         lfo.type = 'sine';
         lfo.frequency.setValueAtTime(26, now);
         lfoGain.gain.setValueAtTime(25, now);
