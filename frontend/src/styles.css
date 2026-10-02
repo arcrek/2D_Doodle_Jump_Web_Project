@@ -441,7 +441,7 @@ canvas {
 
 .menu-comic-stage .menu-card {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
 }
 
@@ -466,8 +466,8 @@ canvas {
   right: -24px;
   width: 100px;
   height: 100px;
-  pointer-events: auto;
-  z-index: 2;
+  pointer-events: none;
+  z-index: 1;
   transform-origin: 28% 86%;
 }
 
@@ -1178,12 +1178,14 @@ body, main, .game-layout-container, .canvas-wrapper {
   font-family: 'Doodle Hand', 'Patrick Hand', 'Comic Sans MS', cursive, sans-serif;
   font-size: 13px;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 3px 8px;
+  min-height: 24px;
   cursor: pointer;
   color: #636159;
   border-radius: 4px;
   transition: all 0.15s ease;
   line-height: 1.2;
+  touch-action: manipulation;
 }
 
 .language-switcher-group .lang-btn:hover {
@@ -1203,6 +1205,11 @@ body, main, .game-layout-container, .canvas-wrapper {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
+}
+
+.menu-lang-switcher {
+  position: relative;
+  z-index: 5;
 }
 
 .doodle-tools-lang {
