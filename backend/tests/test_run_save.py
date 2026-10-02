@@ -104,6 +104,29 @@ def test_leaderboard_limit_and_finish_order(client):
     assert client.get("/api/leaderboard?rules_version=invalid").status_code == 422
 
 
+def test_endless_run_accepts_height_and_duration_beyond_old_limits(client):
+    endless_run = payload(
+        rules_version="endless",
+        height=5420,
+        elapsed_ms=250000,
+        outcome="dnf",
+    )
+    res = client.post("/api/runs", json=endless_run)
+    assert res.status_code == 201
+    assert res.json["height"] == 5420
+    assert res.json["elapsed_ms"] == 250000
+    assert res.json["rules_version"] == "endless"
+
+    # Outcome "finished" is rejected in endless mode because there is no finish line
+    invalid_finished = payload(
+        rules_version="endless",
+        height=5420,
+        elapsed_ms=250000,
+        outcome="finished",
+    )
+    assert client.post("/api/runs", json=invalid_finished).status_code == 422
+
+
 def test_endless_run_save_and_leaderboard(client):
     run_3500 = payload(rules_version="endless", height=3500, elapsed_ms=45000, outcome="dnf", nickname="Climber 3500")
     resp = client.post("/api/runs", json=run_3500)
@@ -140,3 +163,4 @@ def test_endless_run_save_and_leaderboard(client):
     assert len(lb) == 3
     assert [row["nickname"] for row in lb] == ["Climber 5000", "Climber 3500", "Climber 1200"]
     assert [row["height"] for row in lb] == [5000, 3500, 1200]
+

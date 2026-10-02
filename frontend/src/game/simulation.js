@@ -3,7 +3,7 @@ import { createWorld, updatePlatforms } from './world.js';
 import { applyPhysics, handlePlatformCollisions, handleScreenWrap } from './physics.js';
 import { createRaceBots, updateBotAI, onBotBounce } from './bots.js';
 import { getRanking } from './ranking.js';
-import { SCREEN_HEIGHT, SCREEN_WIDTH, TARGET_HEIGHT } from './index.js';
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from './index.js';
 
 export function createState(config = {}) {
   const player = {
@@ -18,7 +18,7 @@ export function createState(config = {}) {
     player,
     world: createWorld(),
     bots: createRaceBots(config.bots),
-    config: { finish_height: TARGET_HEIGHT, max_duration_ms: 180000, ...config },
+    config: { finish_height: null, max_duration_ms: null, ...config },
     elapsedMs: 0,
     maxHeight: 0,
     finished: false,
