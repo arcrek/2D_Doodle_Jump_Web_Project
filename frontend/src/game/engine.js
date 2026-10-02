@@ -398,6 +398,7 @@ export function createGame(canvas, config, {
     bot.lastPlatformY = platform.y;
     state.bots.push(bot);
     nextBotIndex += 1;
+    sound.playBotEntrance();
   }
 
   /**
@@ -719,8 +720,7 @@ export function createGame(canvas, config, {
       // 1. Tính toán hướng di chuyển ngang của người chơi (A/D hoặc phím mũi tên)
       const direction = Number(input.state.right) - Number(input.state.left);
       updateHorizontal(state.player, direction, dt);
-
-      // 2. Xử lý xuyên viền màn hình (Screen Wrap: đi ra mép trái xuất hiện mép phải)
+      const prevPlayerX = state.player.x;
       handleScreenWrap(state.player, canvas.width);
 
       // 3. Cập nhật các bệ đỡ di động & sinh bệ vô hạn (không xóa bệ khi trôi khỏi màn hình)
@@ -780,6 +780,7 @@ export function createGame(canvas, config, {
         // Khi có Dung nham (Lava): Bot rơi ra ngoài màn hình KHÔNG chết, chỉ tử nạn khi chạm vào Dung nham (xử lý trong updateLava).
         if (!state.world?.lava && !config?.isEndless && bot.y - state.world.cameraY > canvas.height + 100) {
           bot.isDead = true;
+          sound.playBotFall(bot.x / canvas.width);
         }
       });
 
