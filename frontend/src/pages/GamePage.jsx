@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import GameCanvas from '../components/GameCanvas.jsx';
 import { TopBar, FloatingHUD, StartMenu, GameOverModal, LeaderboardModal } from '../components/HUD.jsx';
 import { useBackend } from '../hooks/useBackend.js';
 import { postJson } from '../services/api.js';
 
-const EMPTY_STATS = { height: 0, maxHeight: 0, placement: 1, ranking: [] };
+const EMPTY_STATS = { height: 0, maxHeight: 0, placement: 1, ranking: [], lavaDistance: null };
 
 function playerId() {
   try {
@@ -22,6 +22,16 @@ function playerId() {
 export default function GamePage() {
   const backend = useBackend();
   const showLoopDemo = new URLSearchParams(window.location.search).get('demo') === 'loop';
+
+  const gameConfig = useMemo(() => {
+    if (!backend.config) return null;
+    return {
+      ...backend.config,
+      isEndless: true,
+      finish_height: null,
+      max_duration_ms: null,
+    };
+  }, [backend.config]);
 
   // Intro: title -> slide -> first platform -> profile -> player -> platforms -> input -> race.
   const [phase, setPhase] = useState(showLoopDemo ? 'running' : 'intro_title');
@@ -96,8 +106,8 @@ export default function GamePage() {
     gameRef.current?.togglePause();
   }, []);
 
-  const handleUpdateStats = useCallback(({ currentHeight, maxHeight, elapsedMs: gameElapsed, placement, ranking }) => {
-    setStats({ height: currentHeight, maxHeight, placement, ranking });
+  const handleUpdateStats = useCallback(({ currentHeight, maxHeight, elapsedMs: gameElapsed, placement, ranking, lavaDistance }) => {
+    setStats({ height: currentHeight, maxHeight, placement, ranking, lavaDistance });
     setElapsedMs(gameElapsed);
   }, []);
 
@@ -140,7 +150,7 @@ export default function GamePage() {
       <div className="game-layout-container">
         <div className="canvas-wrapper">
           <GameCanvas
-            config={backend.config}
+            config={gameConfig}
             showLoopDemo={showLoopDemo}
             restartKey={restartKey}
             isPaused={phase === 'paused'}
@@ -162,6 +172,7 @@ export default function GamePage() {
                 maxHeight={stats.maxHeight}
                 nickname={playerProfile.nickname}
                 ranking={stats.ranking}
+                lavaDistance={stats.lavaDistance}
               />
             </div>
 

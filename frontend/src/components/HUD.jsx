@@ -83,7 +83,7 @@ export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestar
 /**
  * Thẻ hiển thị độ cao và vị trí đua top lơ lửng ngay trên bề mặt Canvas (Glassmorphism)
  */
-export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạn', ranking = [] }) {
+export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạn', ranking = [], lavaDistance = null }) {
   const displayCurrent = Math.max(0, Math.round(currentHeight));
   const displayMax = Math.max(displayCurrent, Math.round(maxHeight));
 
@@ -103,6 +103,12 @@ export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = 'Bạ
           <span>🚀</span>
           <span>Hiện tại: {displayCurrent}m</span>
         </div>
+        {typeof lavaDistance === 'number' && (
+          <div className={`floating-score-row score-row-lava ${lavaDistance < 100 ? 'is-danger' : lavaDistance < 250 ? 'is-warning' : ''}`}>
+            <span>{lavaDistance < 100 ? '⚠️' : '🔥'}</span>
+            <span>Dung nham: {lavaDistance}m</span>
+          </div>
+        )}
       </div>
 
       {/* Thẻ ĐUA TOP ở góc trên bên phải Canvas */}
@@ -421,7 +427,7 @@ export function GameOverModal({
           /* TRƯỜNG HỢP 2: KẾT THÚC LƯỢT CHƠI (FINISHED) */
           <>
             <h2 className="modal-title">{outcome === 'finished' ? '🏁 Về đích!' : 'Kết thúc lượt chơi'}</h2>
-            <p className="modal-subtitle">{reason === 'timeout' ? 'Đã hết thời gian.' : reason === 'fall' ? 'Bạn đã rơi khỏi màn chơi.' : 'Chúc mừng bạn đã chạm đích!'}</p>
+            <p className="modal-subtitle">{reason === 'lava' ? 'Bạn đã bị dung nham nuốt chửng!' : reason === 'timeout' ? 'Đã hết thời gian.' : reason === 'fall' ? 'Bạn đã rơi khỏi màn chơi.' : 'Chúc mừng bạn đã chạm đích!'}</p>
             {/* Tóm tắt thành tích ván đấu */}
             <div className="stats-summary">
               <div className="stat-box highlight">

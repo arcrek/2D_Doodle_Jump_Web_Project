@@ -269,15 +269,16 @@ export function updateBotAI(bot, platforms, dt, allBots = [], cameraY = 0) {
 
   // Làm mới mục tiêu nếu cần:
   // - Chưa có mục tiêu
-  // - Mục tiêu đã bị vỡ
-  // - Mục tiêu đã trôi khỏi màn hình
+  // - Mục tiêu đã bị vỡ hoặc bị xóa khỏi danh sách bệ (dung nham nuốt chửng)
+  // - Mục tiêu quá xa bên dưới vị trí bot
   // - Hoặc bot đã rơi vượt quá mục tiêu mà chưa nảy
   const hasNoTarget = !bot.targetPlatform;
   const isTargetBroken = bot.targetPlatform?.broken;
-  const isTargetOffscreen = bot.targetPlatform && (bot.targetPlatform.y - cameraY > 540 + 100);
+  const isTargetDestroyed = bot.targetPlatform && !platforms.includes(bot.targetPlatform);
+  const isTargetTooFarBelow = bot.targetPlatform && (bot.targetPlatform.y - bot.y > 180);
   const isMissed = bot.targetPlatform && bot.vy > 0 && (bot.y + bot.height > bot.targetPlatform.y + 16);
 
-  if (hasNoTarget || isTargetBroken || isTargetOffscreen || isMissed) {
+  if (hasNoTarget || isTargetBroken || isTargetDestroyed || isTargetTooFarBelow || isMissed) {
     bot.targetPlatform = findTargetPlatform(bot, platforms, allBots);
   }
 
