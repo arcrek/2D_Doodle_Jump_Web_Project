@@ -14,7 +14,7 @@ RULES = {
     "bots": [
         {"id": "teacher-son", "name": "Thầy Sơn", "base_speed": 41, "sprite_id": "son", "sprite": "/images/bots/son.png"},
         {"id": "teacher-viet", "name": "Thầy Việt", "base_speed": 46, "sprite_id": "viet", "sprite": "/images/bots/viet.png"},
-        {"id": "teacher-hiep", "name": "Thầy Hiệp", "base_speed": 44, "sprite_id": "hiep", "sprite": "/images/bots/hiep.png"},
+        {"id": "teacher-quang", "name": "Thầy Quang", "base_speed": 44, "sprite_id": "quang", "sprite": "/images/bots/quang.png"},
         {"id": "teacher-nam", "name": "Thầy Nam", "base_speed": 48, "sprite_id": "nam", "sprite": "/images/bots/nam.png"},
     ],
 }

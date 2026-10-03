@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createRaceBots, updateRaceBots } from '../game/bots.js';
+import { createRaceBots } from '../game/bots.js';
 import { finish, createState, snapshot } from '../game/simulation.js';
-import { StartMenu } from '../components/HUD.jsx';
+import { StartMenu, FloatingHUD, GameOverModal } from '../components/HUD.jsx';
 import { setLocale } from '../i18n/index.js';
 
 beforeEach(() => {
@@ -14,6 +14,17 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
   setLocale('en');
+});
+
+it('shows only player scores, without teacher ranking or result placement', () => {
+  render(<FloatingHUD currentHeight={240} maxHeight={500} ranking={[{ id: 'son', name: 'Thầy Sơn', progress: 900 }]} />);
+  expect(screen.getByText('Current: 240m')).toBeTruthy();
+  expect(screen.getByText('Best: 500m')).toBeTruthy();
+  expect(screen.queryByLabelText('Leaderboard ranking')).toBeNull();
+  expect(screen.queryByText('Thầy Sơn')).toBeNull();
+  render(<GameOverModal phase="finished" height={500} elapsedMs={10000} placement={4} />);
+  expect(screen.queryByText('Rank')).toBeNull();
+  expect(screen.getByText('500m')).toBeTruthy();
 });
 
 const config = {
@@ -30,28 +41,24 @@ const config = {
   ],
 };
 
-it('moves real race bots and exposes them in the live ranking', () => {
+it('keeps teachers as companions without scores or live ranking', () => {
   const bots = createRaceBots(config.bots);
-  updateRaceBots(bots, 10000, config.finish_height);
-  expect(bots.every((bot) => bot.progress > 0)).toBe(true);
+  expect(bots.every((bot) => bot.progress === undefined && bot.finishedAt === undefined)).toBe(true);
   expect(bots.map((bot) => bot.sprite_id)).toEqual(['son', 'viet']);
 
   const state = createState(config);
   state.bots = bots;
   const view = snapshot(state);
-  expect(view.ranking).toHaveLength(3);
-  expect(view.ranking.some((racer) => racer.name === 'Thầy Sơn')).toBe(true);
+  expect(view.ranking).toEqual([]);
 });
 
 it('creates a persistent result with placement when a run ends', () => {
   const state = createState(config);
   state.elapsedMs = 12500;
   state.player.progress = 420;
-  updateRaceBots(state.bots, state.elapsedMs, config.finish_height);
   finish(state, 'fall');
   expect(state.result).toMatchObject({ height: 420, elapsed_ms: 12500, outcome: 'dnf' });
-  expect(state.result.placement).toBeGreaterThanOrEqual(1);
-  expect(state.result.placement).toBeLessThanOrEqual(3);
+  expect(state.result.placement).toBe(1);
 });
 
 it('computes result with outcome dnf and achieved height in endless mode', () => {
@@ -66,7 +73,7 @@ it('computes result with outcome dnf and achieved height in endless mode', () =>
 it('keeps the profile skin without showing a skin selector in the menu', () => {
   const onStartGame = vi.fn();
   render(<StartMenu initialSkin="purple" onStartGame={onStartGame}
-    onOpenLeaderboard={() => {}} onOpenHistory={() => {}} />);
+    onOpenHistory={() => {}} />);
   fireEvent.change(screen.getByLabelText(/Player Name/i), { target: { value: 'Vinh' } });
   expect(screen.queryByLabelText(/Skin/i)).toBeNull();
   expect(screen.getByText(/Controls:/i)).toBeTruthy();

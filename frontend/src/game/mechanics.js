@@ -21,8 +21,10 @@ import {
   ROCKET_SPEED_Y,
   SHIELD_DURATION,
   SHIELD_LAVA_REBOUND_VELOCITY,
+  SCREEN_WIDTH,
+  SCREEN_HEIGHT,
 } from './index.js';
-import { onBotBounce } from './bots.js';
+import { onBotBounce, updateBotAI, findCompanionPlatform } from './bots.js';
 import { isLandingOnPlatform } from './collision.js';
 import { drawSprite, POWERUP_PATHS, POWERUP_EFFECT_PATHS, LAVA_PATH, LAVA_FLAME_PATH } from './sprites.js';
 
@@ -42,7 +44,6 @@ export function updateLava({
   dt,
   world,
   player,
-  bots = [],
   soundManager,
   onGameOver,
 }) {
@@ -79,33 +80,35 @@ export function updateLava({
     }
   }
 
-  // Va chạm với Bot đối thủ
-  for (const bot of bots) {
-    if (bot.isDead) continue;
-    if (bot.y + bot.height >= lava.y) {
-      bot.isDead = true;
-    }
-  }
+  // Các thầy bất tử; dung nham chỉ kết thúc lượt của người chơi.
 }
 
 // =============================================================================
 // 2. CÂN BẰNG NHỊP NHẢY BOT (BOT JUMP COOLDOWN & PACING)
 // =============================================================================
-export function updateBotPhysics(bot, platforms, dt) {
+export function updateBotPhysics(bot, platforms, dt, { cameraY = null } = {}) {
   if (bot.isDead || bot.isEntering) return;
 
   // Trạng thái đang đậu trên bệ chờ dậm nhảy
   if (bot.isGrounded) {
     bot.vy = 0;
     if (bot.standingPlatform) {
-      if (bot.standingPlatform.broken) {
+      if (bot.standingPlatform.broken || !platforms.includes(bot.standingPlatform)) {
         bot.isGrounded = false;
         bot.standingPlatform = null;
+        bot.waitingForCamera = false;
+        bot.prevY = bot.y;
+        return;
       } else {
         bot.y = bot.standingPlatform.y - bot.height;
         if (bot.standingPlatform.vx) {
           bot.x += bot.standingPlatform.vx * dt;
         }
+        bot.prevY = bot.y;
+        bot.vx = 0;
+        const screenY = cameraY === null ? Infinity : bot.y - cameraY;
+        bot.waitingForCamera = screenY < (bot.waitingForCamera ? 140 : 80);
+        if (bot.waitingForCamera) return;
       }
     }
 
@@ -123,7 +126,7 @@ export function updateBotPhysics(bot, platforms, dt) {
 
   // Trạng thái trên không: Ép dùng chung GRAVITY với Player
   // Lưu tọa độ Y trước khi rơi để kiểm tra va chạm đáp bệ từ trên xuống
-  const prevY = Number.isFinite(bot.prevY) ? bot.prevY : bot.y;
+  const prevY = bot.y;
   bot.vy = Math.min(MAX_VY, bot.vy + GRAVITY * dt);
   bot.y += bot.vy * dt;
   bot.prevY = prevY;
@@ -145,13 +148,16 @@ export function updateBotPhysics(bot, platforms, dt) {
       const bounceMult = landing.type === 'bouncy' ? 1.45 : 1.0;
       const cooldown = bot.profile?.jumpCooldown ?? 0;
 
-      if (cooldown > 0) {
+      const aheadOfCamera = cameraY !== null && landing.y - bot.height - cameraY < 80;
+      if (cooldown > 0 || aheadOfCamera) {
         // Nếu có cấu hình độ trễ dậm nhảy thì đứng chờ trên bệ
         bot.y = landing.y - bot.height;
         bot.vy = 0;
         bot.isGrounded = true;
         bot.standingPlatform = landing;
         bot.jumpCooldownTimer = cooldown;
+        bot.waitingForCamera = aheadOfCamera;
+        bot.vx = 0;
       } else {
         // Nhảy lên ngay lập tức khi tiếp đất giống hệt Người chơi (không bị dính bệ)
         bot.y = landing.y - bot.height;
@@ -168,6 +174,75 @@ export function updateBotPhysics(bot, platforms, dt) {
   }
 
   bot.prevY = bot.y;
+}
+
+/** Nhảy cao bắt kịp tới bệ gần người chơi; chỉ camera người chơi quyết định nhịp chờ. */
+export function updateBotCompanion(bot, world, player, dt, allBots = [], screenHeight = SCREEN_HEIGHT) {
+  if (bot.isEntering) return;
+  bot.isDead = false;
+  const platforms = world.platforms;
+  const lavaY = world.lava?.y ?? Infinity;
+  const invalidCatchUp = bot.catchUp && (bot.catchUp.platform.broken
+    || !platforms.includes(bot.catchUp.platform) || bot.catchUp.platform.y >= lavaY - 24);
+  if (invalidCatchUp) bot.catchUp = null;
+  const behind = bot.y - world.cameraY > screenHeight
+    || bot.y + bot.height >= lavaY - 12;
+  if (!bot.catchUp && (behind || invalidCatchUp)) {
+    const platform = findCompanionPlatform(bot, platforms, player, allBots, lavaY);
+    if (platform) {
+      const targetX = platform.x + (platform.width - bot.width) / 2;
+      let dx = targetX - bot.x;
+      if (dx > SCREEN_WIDTH / 2) dx -= SCREEN_WIDTH;
+      if (dx < -SCREEN_WIDTH / 2) dx += SCREEN_WIDTH;
+      bot.catchUp = { platform, x: bot.x, y: bot.y, elapsed: 0,
+        targetX, dx,
+        duration: Math.min(1.4, Math.max(0.65, Math.abs(bot.y - platform.y) / 900)) };
+      bot.targetPlatform = platform;
+      bot.targetOffsetX = 0;
+      bot.isGrounded = false;
+      bot.waitingForCamera = false;
+      bot.standingPlatform = null;
+      bot.reactionTimer = 0;
+    } else if (bot.vy >= 0) {
+      // Bệ chưa được sinh lại: bật lên và tìm bệ ở frame kế tiếp.
+      bot.vy = -900;
+      bot.isGrounded = false;
+      bot.standingPlatform = null;
+    }
+  }
+
+  if (bot.catchUp) {
+    const jump = bot.catchUp;
+    jump.elapsed += dt;
+    const p = Math.min(1, jump.elapsed / jump.duration);
+    const targetX = jump.platform.x + (jump.platform.width - bot.width) / 2;
+    const targetY = jump.platform.y - bot.height;
+    // Giữ hướng xuyên mép đã chọn khi bật nhảy, cộng chuyển động thật của bệ.
+    const dx = jump.dx + targetX - jump.targetX;
+    bot.prevY = bot.y;
+    bot.x = ((jump.x + dx * p) % SCREEN_WIDTH + SCREEN_WIDTH) % SCREEN_WIDTH;
+    const arc = Math.abs(targetY - jump.y) + 480;
+    bot.y = jump.y + (targetY - jump.y) * p - arc * p * (1 - p);
+    bot.vx = dx / jump.duration;
+    bot.vy = ((targetY - jump.y) - arc * (1 - 2 * p)) / jump.duration;
+    bot.direction = dx >= 0 ? 'right' : 'left';
+    if (p === 1) {
+      bot.x = targetX;
+      bot.y = targetY;
+      bot.prevY = targetY;
+      bot.vx = bot.vy = 0;
+      bot.isGrounded = true;
+      bot.standingPlatform = jump.platform;
+      bot.jumpCooldownTimer = bot.profile?.jumpCooldown ?? 0;
+      bot.catchUp = null;
+      onBotBounce(bot, jump.platform);
+      bot.waitingForCamera = bot.y - world.cameraY < 80;
+    }
+    return;
+  }
+
+  updateBotAI(bot, platforms, dt, allBots, world.cameraY);
+  updateBotPhysics(bot, platforms, dt, { cameraY: world.cameraY });
 }
 
 // =============================================================================
@@ -246,6 +321,7 @@ export function updatePowerups({ player, platforms, dt, soundManager }) {
 // =============================================================================
 // 4. RENDER ĐỒ HỌA DUNG NHAM & HIỆU ỨNG POWERUPS
 // =============================================================================
+// Sample inside the illustrated block: the master JPG includes a paper border.
 const LAVA_SOURCE_RECT = [176, 210, 912, 510];
 const LAVA_TILE_WIDTH = 640;
 const LAVA_TILE_HEIGHT = LAVA_TILE_WIDTH * LAVA_SOURCE_RECT[3] / LAVA_SOURCE_RECT[2];

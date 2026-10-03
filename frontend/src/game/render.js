@@ -25,9 +25,10 @@ import {
   drawDoodleWipe
 } from './doodle-art.js';
 import { BOT_COLORS } from './index.js';
-import { SKIN_PATHS, BOT_PATHS, TITLE_LOGO_PATH, isSpriteReady, drawSprite, platformSprite } from './sprites.js';
+import { SKIN_PATHS, BOT_PATHS, TITLE_LOGO_PATH, drawSprite, platformSprite, isSpriteReady } from './sprites.js';
 import { getEntranceJumpPosition } from './player.js';
 import { renderLava, renderLavaDanger, renderPowerups } from './mechanics.js';
+import { sampleBotEntrance, renderBotEntranceBackground, renderBotEntranceImpact, renderBotEntranceName } from './bot-entrance.js';
 import { getLocale } from '../i18n/index.js';
 
 const introArtwork = new WeakMap();
@@ -41,8 +42,8 @@ function paintIntroArtwork(ctx, width, centerY, drawingTime, hovered, sliding, b
   const logoReady = isSpriteReady(TITLE_LOGO_PATH);
   if (!cached || cached.width !== width || cached.logoReady !== logoReady || (!sliding && (cached.drawing !== drawing || cached.hovered !== hovered || cached.locale !== currentLocale))) {
     const canvas = cached?.canvas ?? document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = 280;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== 280) canvas.height = 280;
     const ink = canvas.getContext('2d');
     if (!ink) return;
     ink.clearRect(0, 0, width, 280);
@@ -67,7 +68,8 @@ export function render(ctx, state) {
   const { width, height } = ctx.canvas;
   const cameraY = world.cameraY || 0;
   const timeSec = phase === 'returning_title' ? (ui.returnDrawingTime ?? 0) : performance.now() / 1000;
-  const drawingTime = ui.reduceMotion || typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : timeSec;
+  const reduceMotion = ui.reduceMotion ?? (typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches));
+  const drawingTime = reduceMotion ? 0 : timeSec;
   const blurPx = phase === 'intro_sliding' ? Math.max(0, ui.motionBlurPx || 0) : 0;
 
   // Xóa sạch toàn bộ khung hình cũ trước khi vẽ khung hình mới
@@ -118,12 +120,22 @@ export function render(ctx, state) {
     }
   }
 
+  const showLava = ['running', 'paused', 'finished', 'wipe_reset', 'warmup_hop', 'returning_title'].includes(phase);
+  if (!isMock && showLava && world?.lava) {
+    renderLavaDanger(ctx, world.lava, cameraY, width, height, drawingTime);
+  }
+  const entranceEntries = ui.botEntrances || [];
+  const entranceClock = ui.botEntranceClockMs ?? 0;
+  const reducedEntranceMotion = ui.reduceMotion ?? (typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches));
+  const newestEntrance = entranceEntries[entranceEntries.length - 1];
+  if (!isMock && newestEntrance) {
+    renderBotEntranceBackground(ctx, newestEntrance, sampleBotEntrance(newestEntrance, entranceClock, reducedEntranceMotion), width, height);
+  }
+
   // ===========================================================================
   // 2. VẼ DANH SÁCH BỆ ĐỠ (PLATFORMS)
   // ===========================================================================
   // Ở màn hình mở đầu 'intro_title' hoặc lúc đang trượt 'intro_sliding', ẩn toàn bộ bệ
-  const showLava = ['running', 'paused', 'finished', 'wipe_reset', 'warmup_hop', 'returning_title'].includes(phase);
-  if (!isMock && showLava && world?.lava) renderLavaDanger(ctx, world.lava, cameraY, width, height, drawingTime);
   const showPickups = ['intro_reveal', 'intro_wait_input', 'running', 'paused', 'finished', 'warmup_hop', 'wipe_reset'].includes(phase);
   const hiddenPlatforms = ['intro_title', 'intro_sliding', 'intro_menu_delay'].includes(phase);
   // Ở giai đoạn xuất hiện bệ, bệ sẽ hiện dần dần theo độ mờ alpha
@@ -167,6 +179,7 @@ export function render(ctx, state) {
 
     if (!isMock) {
       drawDoodlePlatform(ctx, platform, py, drawingTime, index);
+      // Items share the host platform's reveal alpha, scale and visibility.
       if (showPickups && platform.powerup) renderPowerups(ctx, [platform], null, cameraY, drawingTime);
     } else {
       ctx.fillRect(platform.x, py, platform.width, platform.height);
@@ -183,7 +196,7 @@ export function render(ctx, state) {
       const botY = bot.y - cameraY;
       if (botY < -60 || botY > height + 60) continue;
 
-      // Ưu tiên vẽ ảnh chân dung Avatar của Giảng viên (Thầy Sơn, Thầy Việt, Thầy Hiệp, Thầy Nam)
+      // Ưu tiên vẽ ảnh chân dung Avatar của Giảng viên (Thầy Sơn, Thầy Việt, Thầy Quang, Thầy Nam)
       const drawn = drawSprite(ctx, BOT_PATHS[bot.type], bot.x - 8, botY - 14, bot.width + 16, bot.height + 16, [170, 130, 900, 1020]);
       // Nếu không nạp được ảnh -> vẽ nhân vật hạt đậu phong cách vẽ chì dự phòng
       if (!drawn) {
@@ -237,13 +250,21 @@ export function render(ctx, state) {
   // ===========================================================================
   if (!isMock) {
     if (showPlayer && showPickups) renderPowerups(ctx, null, displayPlayer, cameraY, drawingTime);
-    if (showLava && world?.lava) renderLava(ctx, world.lava, cameraY, width, height, drawingTime);
+    if (showLava && world?.lava) {
+      renderLava(ctx, world.lava, cameraY, width, height, drawingTime);
+    }
   }
 
   // ===========================================================================
   // 5. CÁC LỚP PHỦ GIAO DIỆN VẼ TAY TRÊN CANVAS (OVERLAYS)
   // ===========================================================================
   if (!isMock) {
+    for (const entry of entranceEntries) {
+      renderBotEntranceImpact(ctx, entry, sampleBotEntrance(entry, entranceClock, reducedEntranceMotion), cameraY);
+    }
+    if (newestEntrance) {
+      renderBotEntranceName(ctx, newestEntrance, sampleBotEntrance(newestEntrance, entranceClock, reducedEntranceMotion), width, height);
+    }
     // a. Tiêu đề Doodle và nút START neo tại tọa độ thế giới trên cao (chỉ vẽ khi mở màn)
     if (phase === 'intro_title' || phase === 'intro_sliding' || phase === 'returning_title') {
       const titleWorldY = phase === 'returning_title' ? ui.returnTitleWorldY : (ui.titleWorldY ?? -490);

@@ -16,7 +16,7 @@
     "player_name_placeholder": "Enter your name...",
     "name_required": "Please enter player name (1–24 characters).",
     "name_max_length": "Player name must be 24 characters maximum.",
-    "controls_title": "🎮 Controls:",
+    "controls_title": "Controls:",
     "controls_hint": "A / D or ← / → to move",
     "start_button": "▶ PLAY NOW",
     "leaderboard_button": "Leaderboard ↗",
@@ -52,7 +52,7 @@
     "phase_finished": "Finished",
     "btn_resume": "▶ Resume (ESC)",
     "btn_pause": "⏸ Pause (ESC)",
-    "btn_restart": "🔄 Restart",
+    "btn_restart": "Restart",
     "aria_hud": "Game stats panel",
     "aria_pause_resume": "Pause or Resume",
     "aria_restart": "Restart from beginning",
@@ -60,9 +60,9 @@
     "aria_ranking": "Leaderboard ranking"
   },
   "game_over": {
-    "pause_title": "⏸ Game Paused",
+    "pause_title": "Game Paused",
     "holding_position": "Holding position for {name}",
-    "finish_win_title": "🏁 Goal Reached!",
+    "finish_win_title": "Goal Reached!",
     "finish_over_title": "Game Over",
     "congrats": "Congratulations on reaching the finish line!",
     "lava_death": "Swallowed by lava!",
@@ -95,7 +95,8 @@
     "default_player_name": "Player",
     "press_key_start": "Press key to start!",
     "usth_edition": "★ USTH MULTIPLAYER EDITION ★",
-    "start_btn_canvas": "▶ PLAY NOW"
+    "start_btn_canvas": "▶ PLAY NOW",
+    "new_page": "A NEW PAGE"
   },
   "save": {
     "saving": "Saving result…",
@@ -111,5 +112,23 @@
     "lang_en": "English",
     "lang_vi": "Vietnamese",
     "lang_fr": "French"
+  },
+  "history": {
+    "eyebrow": "JUMP JOURNAL",
+    "title": "My History",
+    "subtitle": "10 latest runs · Newest first",
+    "loading": "Opening journal…",
+    "retry": "Retry",
+    "empty": "No runs recorded yet.",
+    "empty_hint": "Finish a run to add it to your journal.",
+    "col_run": "Run",
+    "col_name": "Name",
+    "col_height": "Height",
+    "col_time": "Time",
+    "close": "Close journal",
+    "aria_runs": "Recent runs",
+    "offline_notice": "You are offline. Reconnect to view your history.",
+    "missing_player": "Player identity is unavailable.",
+    "fetch_error": "Unable to load history. Please try again."
   }
 }

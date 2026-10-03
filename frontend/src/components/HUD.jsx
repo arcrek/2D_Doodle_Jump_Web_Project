@@ -5,16 +5,15 @@
 // =============================================================================
 // File này chứa toàn bộ các khối giao diện React hiển thị đè lên trên Canvas:
 // 1. TopBar: Thanh điều hướng tối trên cùng (Logo, đồng hồ đếm giây, gợi ý phím, nút Pause, Restart, Menu).
-// 2. FloatingHUD: Cặp thẻ nổi phong cách Glassmorphism lơ lửng trực tiếp trên Canvas:
-//    - Thẻ trái: Kỷ lục cao nhất và độ cao hiện tại.
-//    - Thẻ phải: Bảng xếp hạng ĐUA TOP 5 người chơi (Bạn vs 4 Bot) thời gian thực.
+// 2. FloatingHUD: Điểm/kỷ lục của người chơi.
 // 3. HUD (Default Panel): Bảng thống kê hiển thị chi tiết khi cần chế độ cổ điển.
-// 4. StartMenu: Màn hình mở đầu nhập Nickname, chọn Skin trang phục và xem BXH.
+// 4. StartMenu: Màn hình mở đầu nhập Nickname và xem lịch sử cá nhân.
 // 5. GameOverModal: Popup thông báo Tạm dừng (Pause) hoặc Tổng kết khi ván chơi kết thúc.
-// 6. LeaderboardModal: Bảng xếp hạng Top 10 toàn cầu hoặc Lịch sử thi đấu cá nhân từ SQLite.
+// 6. HistoryModal: Lịch sử lượt chơi cá nhân từ SQLite.
 // =============================================================================
 
 import React, { useEffect, useState, useRef } from 'react';
+import TitleLogo from './TitleLogo.jsx';
 import comicBurstMarkup from '../assets/menu-comic-burst.svg?raw';
 import { getJson } from '../services/api.js';
 import { useTranslation } from '../i18n/I18nContext.jsx';
@@ -85,19 +84,15 @@ export function TopBar({ elapsedMs = 0, phase = 'ready', onTogglePause, onRestar
 }
 
 // =============================================================================
-// 2. COMPONENT FLOATING HUD (Thẻ nổi Kỷ lục & Bảng Đua Top trên Canvas)
+// 2. COMPONENT FLOATING HUD (Điểm người chơi trên Canvas)
 // =============================================================================
 /**
- * Thẻ hiển thị độ cao và vị trí đua top lơ lửng ngay trên bề mặt Canvas (Glassmorphism)
+ * Thẻ hiển thị độ cao hiện tại và cao nhất của người chơi.
  */
-export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = '', ranking = [], lavaDistance = null }) {
+export function FloatingHUD({ currentHeight = 0, maxHeight = 0 }) {
   const { t } = useTranslation();
   const displayCurrent = Math.max(0, Math.round(currentHeight));
   const displayMax = Math.max(displayCurrent, Math.round(maxHeight));
-  const playerDisplayName = nickname || t('game.default_player_name');
-
-  // Nếu chưa có ranking thì hiển thị mặc định người chơi
-  const displayRanking = ranking.length ? ranking : [{ id: 'player', name: playerDisplayName, progress: displayCurrent }];
 
   return (
     <>
@@ -105,42 +100,13 @@ export function FloatingHUD({ currentHeight = 0, maxHeight = 0, nickname = '', r
       <div className="floating-hud-score" aria-label={t('hud.aria_score')}>
         <PencilFrame />
         <div className="floating-score-row score-row-high">
-          <span>🏆</span>
           <span>{t('hud.best_label', { val: displayMax })}</span>
         </div>
         <div className="floating-score-row score-row-current">
-          <span>🚀</span>
           <span>{t('hud.current_label', { val: displayCurrent })}</span>
         </div>
-        {typeof lavaDistance === 'number' && (
-          <div className={`floating-score-row score-row-lava ${lavaDistance < 100 ? 'is-danger' : lavaDistance < 250 ? 'is-warning' : ''}`}>
-            <span>{lavaDistance < 100 ? '⚠️' : '🔥'}</span>
-            <span>{t('hud.lava_label', { val: lavaDistance })}</span>
-          </div>
-        )}
       </div>
 
-      {/* Thẻ ĐUA TOP ở góc trên bên phải Canvas */}
-      <div className="floating-hud-ranking" aria-label={t('hud.aria_ranking')}>
-        <PencilFrame />
-        <div className="floating-ranking-header">
-          <span>🏁</span>
-          <span>{t('hud.leaderboard_title')}</span>
-        </div>
-        <div className="floating-ranking-list">
-          {displayRanking.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`floating-ranking-item ${item.id === 'player' ? 'is-player' : ''}`}
-            >
-              <span className="ranking-name">
-                #{idx + 1} {item.id === 'player' ? (item.name || playerDisplayName) : item.name}
-              </span>
-              <span className="ranking-score">{Math.round(item.progress)}m</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </>
   );
 }
@@ -240,11 +206,10 @@ export default function HUD({
 // 4. COMPONENT START MENU (Màn hình mở đầu: Nhập Nickname & Chọn Skin)
 // =============================================================================
 /**
- * Menu xuất phát cho phép người chơi nhập tên, chọn trang phục và xem BXH
+ * Menu xuất phát cho phép người chơi nhập tên và xem lịch sử cá nhân.
  */
 export function StartMenu({
   onStartGame,
-  onOpenLeaderboard,
   onOpenHistory,
   initialNickname = '',
   initialSkin = 'doodle',
@@ -332,7 +297,7 @@ export function StartMenu({
             <span className="menu-badge">{t('menu.edition')}</span>
             <LanguageSwitcher className="menu-lang-switcher" />
           </div>
-          <h2 className="menu-game-title">{t('menu.title')}</h2>
+          <h2 className="menu-game-title"><TitleLogo /></h2>
         </header>
 
         <form className="menu-form" onSubmit={handleSubmit}>
@@ -374,13 +339,6 @@ export function StartMenu({
             <button type="submit" className="btn-primary btn-start">
               {t('menu.start_button')}
             </button>
-            <button
-              type="button"
-              className="btn-secondary btn-leaderboard"
-              onClick={onOpenLeaderboard}
-            >
-              {t('menu.leaderboard_button')}
-            </button>
             {onOpenHistory && <button type="button" className="btn-outline" onClick={onOpenHistory}>{t('menu.history_button')}</button>}
           </div>
         </form>
@@ -401,7 +359,6 @@ export function GameOverModal({
   phase,
   height = 0,
   elapsedMs = 0,
-  placement = 1,
   nickname = '',
   outcome,
   reason,
@@ -410,10 +367,9 @@ export function GameOverModal({
   onRestart,
   onExitToMenu,
 }) {
+  const { t } = useTranslation();
   // Chỉ render khi phase là 'paused' hoặc 'finished'
   if (phase !== 'paused' && phase !== 'finished') return null;
-
-  const { t } = useTranslation();
   const seconds = (Math.max(0, elapsedMs) / 1000).toFixed(1);
 
   const getSubtitle = () => {
@@ -456,11 +412,6 @@ export function GameOverModal({
                 <span className="stat-label">{t('game_over.stat_time')}</span>
                 <span className="stat-num">{seconds}s</span>
               </div>
-              <div className="stat-box">
-                <PencilFrame />
-                <span className="stat-label">{t('game_over.stat_rank')}</span>
-                <span className="stat-num">{t('game_over.rank_val', { placement })}</span>
-              </div>
             </div>
             {/* Trạng thái lưu kết quả vào máy chủ SQLite */}
             {save?.message && <p className={`save-status save-${save.status}`} role="status">{save.message}</p>}
@@ -476,73 +427,110 @@ export function GameOverModal({
 }
 
 // =============================================================================
-// 6. COMPONENT LEADERBOARD MODAL (Popup Bảng Xếp Hạng Top 10 & Lịch Sử)
+// 6. PERSONAL HISTORY
 // =============================================================================
-/**
- * Hộp thoại tra cứu Bảng Xếp Hạng Top 10 hoặc Lịch sử thi đấu của người chơi qua REST API Flask
- */
-export function LeaderboardModal({ onClose, rulesVersion = 'v1', offline = false, mode = 'leaderboard', playerId = '' }) {
-  const { t } = useTranslation();
+export function HistoryModal({ onClose, offline = false, playerId = '' }) {
+  const { t, locale } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(!offline);
-  const [error, setError] = useState(offline ? t('leaderboard.offline_notice') : '');
+  const [error, setError] = useState(offline ? t('history.offline_notice') : '');
   const [attempt, setAttempt] = useState(0);
+  const cardRef = useRef(null);
+  const closeRef = useRef(null);
 
-  // Tự động gọi API khi modal mở ra
   useEffect(() => {
-    if (offline) return;
-    const path = mode === 'history'
-      ? `/api/runs?player_id=${encodeURIComponent(playerId)}`
-      : `/api/leaderboard?rules_version=${encodeURIComponent(rulesVersion)}`;
-    getJson(path)
+    if (offline || !playerId) {
+      setItems([]);
+      setLoading(false);
+      setError(offline ? t('history.offline_notice') : t('history.missing_player'));
+      return;
+    }
+    const controller = new AbortController();
+    setItems([]);
+    setLoading(true);
+    setError('');
+    getJson(`/api/runs?player_id=${encodeURIComponent(playerId)}`, { signal: controller.signal })
       .then((data) => {
+        if (controller.signal.aborted) return;
         setItems(data.items || []);
         setLoading(false);
         setError('');
       })
       .catch(() => {
-        setError(t('leaderboard.fetch_error'));
+        if (controller.signal.aborted) return;
+        setError(t('history.fetch_error'));
         setLoading(false);
       });
-  }, [rulesVersion, offline, mode, playerId, attempt, t]);
+    return () => controller.abort();
+  }, [offline, playerId, attempt, locale]);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    closeRef.current?.focus();
+    return () => { if (previousFocus?.isConnected) previousFocus.focus(); };
+  }, []);
+
+  const handleDialogKey = (event) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+    }
+    if (event.key === 'Tab') {
+      const controls = [...cardRef.current.querySelectorAll('button, [tabindex="0"]')];
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    }
+  };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
-        <h2 className="modal-title">{mode === 'history' ? t('leaderboard.history_title') : t('leaderboard.ranking_title')}</h2>
+    <div className="modal-backdrop history-backdrop" role="dialog" aria-modal="true" aria-labelledby="history-title" onKeyDown={handleDialogKey}>
+      <div className="modal-card doodle-history-card" ref={cardRef}>
+        <PencilFrame fill="#fffaf0" />
+        <div className="history-heading">
+          <p className="history-eyebrow">{t('history.eyebrow')}</p>
+          <h2 className="modal-title" id="history-title">{t('history.title')}</h2>
+          <p className="modal-subtitle">{t('history.subtitle')}</p>
+        </div>
         {loading ? (
-          <p className="modal-status">{t('common.loading')}</p>
+          <p className="history-message" role="status">{t('history.loading')}</p>
         ) : error ? (
-          <div className="modal-alert" role="alert">
+          <div className="history-message history-error" role="alert">
             <p>{error}</p>
-            {!offline && <button type="button" onClick={() => setAttempt(value => value + 1)}>{t('common.retry')}</button>}
+            {!offline && playerId && <button className="history-action" type="button" onClick={() => { closeRef.current?.focus(); setAttempt(value => value + 1); }}><PencilFrame fill="#f5dc78" /><span>{t('history.retry')}</span></button>}
           </div>
         ) : items.length === 0 ? (
-          <p className="modal-empty">{t('leaderboard.empty_runs')}</p>
+          <div className="history-message"><p>{t('history.empty')}</p><small>{t('history.empty_hint')}</small></div>
         ) : (
-          <table className="leaderboard-table">
-            <thead>
-              <tr>
-                <th>{t('leaderboard.col_rank')}</th>
-                <th>{t('leaderboard.col_player')}</th>
-                <th>{t('leaderboard.col_height')}</th>
-                <th>{t('leaderboard.col_time')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.slice(0, 10).map((item, idx) => (
-                <tr key={idx}>
-                  <td>#{idx + 1}</td>
-                  <td>{item.nickname}</td>
-                  <td>{item.height}m</td>
-                  <td>{(item.elapsed_ms / 1000).toFixed(1)}s</td>
+          <div className="history-table-scroll" tabIndex={0} role="region" aria-label={t('history.aria_runs')}>
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th scope="col">{t('history.col_run')}</th>
+                  <th scope="col">{t('history.col_name')}</th>
+                  <th scope="col">{t('history.col_height')}</th>
+                  <th scope="col">{t('history.col_time')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.slice(0, 10).map((item, idx) => (
+                  <tr key={item.run_id || idx}>
+                    <td>{String(idx + 1).padStart(2, '0')}</td>
+                    <td className="history-player">{item.nickname}</td>
+                    <td>{item.height}m</td>
+                    <td>{(item.elapsed_ms / 1000).toFixed(1)}s</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-        <div className="modal-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>{t('common.close')}</button>
+        <div className="history-footer">
+          <button ref={closeRef} type="button" className="history-action" onClick={onClose}><PencilFrame fill="#f5dc78" /><span>{t('history.close')}</span></button>
         </div>
       </div>
     </div>

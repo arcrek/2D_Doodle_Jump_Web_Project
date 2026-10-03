@@ -4,12 +4,11 @@
 // =============================================================================
 // Module này chịu trách nhiệm vẽ các phần tử đồ họa mang phong cách vẽ tay (hand-drawn sketch):
 // 1. drawSketchLine & drawSketchRect: Các hàm vẽ đường thẳng/khung chữ nhật rung nhẹ giả nét bút chì.
-// 2. drawDoodleTitle: Vẽ tiêu đề lớn "DOODLE JUMP", dòng chữ "★ USTH MULTIPLAYER EDITION ★",
-//    bóng đổ bút chì và đường lượn sóng cam sinh động dưới chân chữ.
+// 2. drawDoodleTitle: Logo bút chì tách thành chữ phụ, chữ chính và gạch chân, giữ từng nhịp stop motion.
 // 3. drawDoodleStartButton: Vẽ nút "▶ BẮT ĐẦU CHƠI" với hiệu ứng thở (pulse) và đổi màu khi rê chuột.
 // 4. drawDoodleArrowGuide: Vẽ gợi ý phím bấm điều khiển [ ← / A ] và [ → / D ] ở góc màn hình.
 // 5. drawDoodleCharacter: Vẽ nhân vật dạng hạt đậu hoạt hình (mắt, con ngươi liếc, mũi, chân nhún).
-// 6. drawDoodleWipe: Vẽ hiệu ứng rèm gạt màn hình màu xanh lá có viền răng cưa khi chơi lại.
+// 6. drawDoodleWipe: Lật sang trang giấy kẻ ô mới khi chơi lại.
 // =============================================================================
 
 import { drawTitleLogo } from './title-logo.js';
@@ -62,7 +61,7 @@ export function drawSketchRect(ctx, x, y, w, h, radius = 6) {
 
 /**
  * 1. Vẽ toàn bộ cụm Tiêu đề màn hình mở đầu (Title Screen)
- * Bao gồm: Dòng chữ phụ, Tiêu đề lớn 64px, Bóng đổ bút chì, Lò xo trang trí và Nét sóng nhấp nhô.
+ * Ba lớp logo bút chì trên nền trong suốt; chữ Canvas dự phòng khi ảnh chưa tải được.
  * @param {CanvasRenderingContext2D} ctx - Ngữ cảnh vẽ 2D
  * @param {number} centerX - Tọa độ X tâm màn hình (ví dụ: width / 2)
  * @param {number} centerY - Tọa độ Y tâm tiêu đề (gốc neo giữ)
@@ -444,7 +443,7 @@ export function drawDoodleCharacter(ctx, char, cameraY, timeSec = 0, isPlayer = 
 
 /**
  * 5. Hiệu ứng Rèm gạt chuyển cảnh (Wipe Transition Curtain)
- * Kéo một bức rèm màu xanh lá đen từ trái sang phải với mép răng cưa phác thảo khi chơi lại.
+ * Trang giấy ấm với mép xé và nét chì che kín thời điểm reset, rồi trượt sang phải.
  * @param {CanvasRenderingContext2D} ctx - Ngữ cảnh vẽ 2D
  * @param {number} progress - Tiến độ chuyển cảnh từ 0.0 (mở) -> 0.5 (đóng kín) -> 1.0 (mở hết)
  * @param {number} canvasWidth - Chiều rộng Canvas
@@ -499,7 +498,7 @@ export function drawDoodleWipe(ctx, progress, canvasWidth, canvasHeight) {
   ctx.fillStyle = '#554c3e';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = '32px "Doodle Hand", "Comic Sans MS", cursive';
-  ctx.fillText(t('canvas.new_page'), centerX, canvasHeight / 2 - 7);
+  ctx.fillText(t('game.new_page'), centerX, canvasHeight / 2 - 7);
   ctx.strokeStyle = '#a2844b';
   ctx.lineWidth = 1.4;
   ctx.beginPath(); ctx.moveTo(centerX - 97, canvasHeight / 2 + 22);

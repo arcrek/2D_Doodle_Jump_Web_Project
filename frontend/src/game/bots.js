@@ -1,6 +1,6 @@
 // frontend/src/game/bots.js
 // BOT-01 · Nguyễn Đình Phú Vinh
-// MODULE QUẢN LÝ DỮ LIỆU VÀ TRÍ TUỆ NHÂN TẠO CỦA BOT ĐỐI THỦ
+// Các thầy đồng hành: dữ liệu và cá tính chọn bệ.
 
 import {
   SCREEN_WIDTH,
@@ -10,6 +10,7 @@ import {
   BOT_ACCEL,
   BOT_PROFILES,
   JUMP_VELOCITY,
+  GRAVITY,
 } from './index.js';
 
 export { BOT_PROFILES };
@@ -26,19 +27,18 @@ export function createStartingBots(startY = 388) {
   return createRaceBots([
     { id: 'teacher-son', name: 'Thầy Sơn', sprite_id: 'son' },
     { id: 'teacher-viet', name: 'Thầy Việt', sprite_id: 'viet' },
-    { id: 'teacher-hiep', name: 'Thầy Hiệp', sprite_id: 'hiep' },
+    { id: 'teacher-quang', name: 'Thầy Quang', sprite_id: 'quang' },
     { id: 'teacher-nam', name: 'Thầy Nam', sprite_id: 'nam' },
   ]).map((bot) => ({ ...bot, y: startY, prevY: startY, vy: 0 }));
 }
 
 /**
  * BOT-01: Tạo danh sách bot từ cấu hình profiles nhận vào.
- * Sao chép từng phần tử, thêm progress: 0. Không mutate dữ liệu truyền vào.
+ * Sao chép từng phần tử, không mutate dữ liệu truyền vào.
  */
 export function createBots(profiles = []) {
   return profiles.map((profile) => ({
     ...profile,
-    progress: 0,
   }));
 }
 
@@ -53,24 +53,10 @@ export function createRaceBots(profiles = []) {
       sprite_id: spriteId,
       base_speed: profile.base_speed || 44,
       lane: laneX,
-      finishedAt: null,
       isDead: false,
-      progress: profile.progress || 0,
     });
     return bot;
   });
-}
-
-export function updateRaceBots(bots, elapsedMs, finishHeight) {
-  const seconds = elapsedMs / 1000;
-  for (const [index, bot] of bots.entries()) {
-    const speed = bot.base_speed || 44;
-    const variation = 4 * (Math.sin(seconds * 0.7 + index) - Math.sin(index));
-    bot.progress = Math.min(finishHeight, Math.max(bot.progress || 0, speed * seconds + variation));
-    if (bot.progress >= finishHeight && bot.finishedAt === null) {
-      bot.finishedAt = elapsedMs;
-    }
-  }
 }
 
 /**
@@ -94,7 +80,6 @@ export function createBot(typeKey, startX, startY = 388, overrides = {}) {
     vy: JUMP_VELOCITY, // Bật nhảy lên ngay khi xuất phát
     isDead: false,
     direction: 'right',
-    progress: 0,
 
     // Trạng thái AI
     profile,
@@ -105,6 +90,41 @@ export function createBot(typeKey, startX, startY = 388, overrides = {}) {
     reactionTimer: profile.reactionDelay || 0,
     ...overrides,
   };
+}
+
+// Chia mục tiêu cho mọi cá tính, vẫn dùng chung khi không có lựa chọn khác.
+function preferUnclaimed(bot, platforms, allBots, superJump = false) {
+  const claims = new Set(allBots.filter(other => other !== bot)
+    .flatMap(other => [other.targetPlatform, other.standingPlatform, other.catchUp?.platform,
+      other.isEntering ? other.entrancePlatform : null])
+    .filter(Boolean));
+  // Tránh giành bệ chỉ sau khi kiểm tra thời gian bay và tầm di chuyển ngang.
+  // Cú nhảy bắt kịp có quỹ đạo riêng nên không bị giới hạn bởi cú nhảy thường.
+  const reachable = superJump ? platforms : platforms.filter(platform => {
+    const vy = bot.isGrounded ? JUMP_VELOCITY : bot.vy;
+    const discriminant = vy * vy + 2 * GRAVITY * (platform.y - (bot.y + bot.height));
+    if (discriminant < 0) return false;
+    const airTime = (-vy + Math.sqrt(discriminant)) / GRAVITY;
+    const maxVx = MAX_VX * (bot.profile?.speedMultiplier || 0.8);
+    const steeringTime = Math.max(0, airTime - (bot.reactionTimer || 0));
+    const travel = Math.max(0, maxVx * steeringTime - maxVx * maxVx / (2 * BOT_ACCEL));
+    const directDx = Math.abs(platform.x + platform.width / 2 - (bot.x + bot.width / 2));
+    const dx = Math.min(directDx, Math.abs(SCREEN_WIDTH - directDx));
+    const requiredTravel = Math.max(0, dx - (platform.width + bot.width) / 2 + 8);
+    return requiredTravel <= travel;
+  });
+  const pool = reachable.length ? reachable : platforms;
+  const free = pool.filter(platform => !claims.has(platform));
+  return free.length ? free : pool;
+}
+
+export function findCompanionPlatform(bot, platforms, player, allBots = [], lavaY = Infinity) {
+  const safe = platforms.filter(p => !p.broken && p.y < lavaY - 24
+    && p.type !== 'fragile' && p.type !== 'breakable');
+  const nearPlayer = safe.filter(p => Math.abs(p.y - (player.y + player.height)) <= 120);
+  const pool = preferUnclaimed(bot, nearPlayer.length ? nearPlayer : safe, allBots, true);
+  return pool.sort((a, b) => Math.abs(a.y - (player.y + player.height))
+    - Math.abs(b.y - (player.y + player.height)))[0] || null;
 }
 
 /**
@@ -120,11 +140,11 @@ export function findTargetPlatform(bot, platforms = [], allBots = []) {
 
   // 1. Trường hợp cấp cứu: Bot đang rơi xuống (vy > 0 trong Canvas), tìm bệ ngay dưới chân
   if (bot.vy > 0) {
-    const landingTargets = platforms.filter((p) => {
+    const landingTargets = preferUnclaimed(bot, platforms.filter((p) => {
       if (p.broken) return false;
       const dropDy = p.y - (bot.y + bot.height);
       return dropDy >= -10 && dropDy <= 140;
-    });
+    }), allBots);
 
     if (landingTargets.length > 0) {
       landingTargets.sort((a, b) => {
@@ -160,6 +180,7 @@ export function findTargetPlatform(bot, platforms = [], allBots = []) {
   }
 
   if (targetPool.length > 0) {
+    targetPool = preferUnclaimed(bot, targetPool, allBots);
     // Tách bệ nhảy vượt tầng
     const tier2Platforms = isBouncy ? targetPool.filter((p) => {
       const dy = currentY - p.y;
@@ -236,14 +257,14 @@ export function findTargetPlatform(bot, platforms = [], allBots = []) {
   }
 
   // Dự phòng: Lấy bệ phía trên gần nhất nếu có (p.y < currentY)
-  const allAbove = platforms.filter((p) => !p.broken && p.y < currentY - 20);
+  const allAbove = preferUnclaimed(bot, platforms.filter((p) => !p.broken && p.y < currentY - 20), allBots);
   if (allAbove.length > 0) {
     allAbove.sort((a, b) => b.y - a.y);
     return allAbove[0];
   }
 
   // Dự phòng: Bệ phía dưới khi đang rơi
-  const allBelow = platforms.filter((p) => !p.broken && p.y >= bot.y);
+  const allBelow = preferUnclaimed(bot, platforms.filter((p) => !p.broken && p.y >= bot.y), allBots);
   if (allBelow.length > 0) {
     allBelow.sort((a, b) => a.y - b.y);
     return allBelow[0];
@@ -256,7 +277,7 @@ export function findTargetPlatform(bot, platforms = [], allBots = []) {
  * Cập nhật AI của Bot mỗi frame
  */
 export function updateBotAI(bot, platforms, dt, allBots = [], cameraY = 0) {
-  if (bot.isDead) return;
+  if (bot.isDead || bot.isGrounded || bot.catchUp) return;
 
   const speedMult = bot.profile?.speedMultiplier || 0.8;
   const maxVx = MAX_VX * speedMult;

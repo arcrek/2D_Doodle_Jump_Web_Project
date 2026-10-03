@@ -2,6 +2,7 @@ import { createElement, StrictMode } from 'react';
 import { act, cleanup, render as mount } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createGame } from '../game/engine.js';
+import { sound, soundManager } from '../game/audio.js';
 import { SCREEN_HEIGHT } from '../game/world.js';
 import { LAVA_INITIAL_Y } from '../game/index.js';
 import { render } from '../game/render.js';
@@ -14,8 +15,10 @@ vi.mock('../game/physics.js', () => ({ applyPhysics: vi.fn(), handlePlatformColl
 let pending;
 let canvas;
 let context;
+let originalAudioConfig;
 
 beforeEach(() => {
+  originalAudioConfig = soundManager.config;
   pending = new Map();
   let nextId = 0;
   vi.stubGlobal('requestAnimationFrame', vi.fn(callback => {
@@ -28,10 +31,104 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  soundManager.config = originalAudioConfig;
+  soundManager.isMuted = false;
   cleanup();
   vi.restoreAllMocks();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+});
+
+it('pause đóng băng cut-in; frame vượt impact phát một lần, input và AI tiếp tục', () => {
+  const impact = vi.spyOn(soundManager, 'playSFX');
+  const game = createGame(canvas, {}, { enableIntro: true, initialPhase: 'running' });
+  tick(0);
+  tick(8000);
+  const state = game.getState();
+  const entry = state.ui.botEntrances[0];
+  expect(entry).toMatchObject({ name: 'Thầy Sơn', side: 'left', startMs: 8000, impactPlayed: false });
+  tick(8300);
+  const x = state.bots[0].x;
+  game.togglePause();
+  tick(20000);
+  expect(state.ui.botEntranceClockMs).toBe(8300);
+  expect(state.bots[0].x).toBe(x);
+  game.togglePause();
+  game.setDirection('right', true);
+  tick(20750);
+  expect(state.player.vx).toBeGreaterThan(0);
+  expect(state.bots[0].isEntering).toBe(false);
+  expect(entry.impactWorldPosition).toEqual({ x: state.bots[0].x + state.bots[0].width / 2, y: state.bots[0].y + state.bots[0].height });
+  const landedY = state.bots[0].y;
+  tick(20770);
+  expect(state.bots[0].y).toBeLessThan(landedY);
+  tick(21100);
+  expect(state.ui.botEntrances).toHaveLength(0);
+  expect(impact.mock.calls.filter(([name]) => name === 'botImpact')).toHaveLength(1);
+  game.destroy();
+});
+
+it('frame gián đoạn tạo bốn entry đúng hướng và chỉ phát bốn impact', () => {
+  const impact = vi.spyOn(soundManager, 'playSFX');
+  const game = createGame(canvas, {}, { enableIntro: true, initialPhase: 'running' });
+  tick(0);
+  tick(32000);
+  const state = game.getState();
+  expect(state.ui.botEntrances.map(entry => [entry.name, entry.side])).toEqual([
+    ['Thầy Sơn', 'left'], ['Thầy Việt', 'right'], ['Thầy Quang', 'left'], ['Thầy Nam', 'right'],
+  ]);
+  tick(32900);
+  expect(state.ui.botEntrances.every(entry => entry.impactPlayed)).toBe(true);
+  tick(33400);
+  expect(state.ui.botEntrances).toHaveLength(0);
+  tick(34000);
+  expect(state.bots).toHaveLength(4);
+  expect(impact.mock.calls.filter(([name]) => name === 'botImpact')).toHaveLength(4);
+  game.destroy();
+});
+
+it.each(['restart', 'title', 'destroy', 'timeout'])('%s dọn entry, không phát impact muộn', action => {
+  const impact = vi.spyOn(soundManager, 'playSFX');
+  const game = createGame(canvas, action === 'timeout' ? { max_duration_ms: 8500, finish_height: 3000 } : {}, { enableIntro: true, initialPhase: 'running' });
+  tick(0);
+  tick(8000);
+  const state = game.getState();
+  expect(state.ui.botEntrances).toHaveLength(1);
+  if (action === 'restart') game.triggerRestartWipe();
+  if (action === 'title') game.returnToTitleMenu();
+  if (action === 'destroy') game.destroy();
+  if (action === 'timeout') tick(8500);
+  expect(state.ui.botEntrances).toHaveLength(0);
+  tick(8900);
+  expect(impact.mock.calls.filter(([name]) => name === 'botImpact')).toHaveLength(0);
+  game.destroy();
+});
+
+it('mute bỏ whoosh, hoàn tất impact và không replay khi unmute', () => {
+  const whoosh = vi.spyOn(sound, 'playBotEntrance');
+  const impact = vi.spyOn(soundManager, 'playSFX');
+  soundManager.isMuted = true;
+  const game = createGame(canvas, {}, { enableIntro: true, initialPhase: 'running' });
+  tick(0);
+  tick(8000);
+  tick(8900);
+  expect(whoosh).not.toHaveBeenCalled();
+  expect(game.getState().ui.botEntrances[0].impactPlayed).toBe(true);
+  const count = impact.mock.calls.filter(([name]) => name === 'botImpact').length;
+  soundManager.isMuted = false;
+  tick(9000);
+  expect(impact.mock.calls.filter(([name]) => name === 'botImpact')).toHaveLength(count);
+  game.destroy();
+});
+
+it.each([0, 0.25])('forward whoosh volume %s từ cấu hình khi bot vào', volume => {
+  const whoosh = vi.spyOn(sound, 'playBotEntrance');
+  soundManager.config = { ...soundManager.config, sfx: { botEntrance: { volume } } };
+  const game = createGame(canvas, {}, { enableIntro: true, initialPhase: 'running' });
+  tick(0);
+  tick(8000);
+  expect(whoosh).toHaveBeenCalledExactlyOnceWith(volume);
+  game.destroy();
 });
 
 function tick(time) {
@@ -246,7 +343,7 @@ it('wipe che kín trước khi thay thế thế giới và chỉ mở game sau k
   tick(100);
   tick(390);
   expect(game.getState().world).toBe(oldWorld);
-  tick(550);
+  tick(560);
   expect(game.getState().world).not.toBe(oldWorld);
   expect(game.getState().bots).toHaveLength(0);
   expect(game.getPhase()).toBe('wipe_reset');
@@ -303,18 +400,18 @@ it('bot vào ở giây 8/16/24/32 của lượt chơi, pause không tính giờ'
   tick(36000);
   tick(44000);
   tick(52000);
-  expect(game.getState().bots.map(bot => bot.name)).toEqual(['Thầy Sơn', 'Thầy Việt', 'Thầy Hiệp', 'Thầy Nam']);
+  expect(game.getState().bots.map(bot => bot.name)).toEqual(['Thầy Sơn', 'Thầy Việt', 'Thầy Quang', 'Thầy Nam']);
   game.triggerRestartWipe();
   tick(53000);
-  tick(53450);
+  tick(53460);
   expect(game.getState().bots).toHaveLength(0);
-  tick(53900);
-  tick(54450);
-  tick(55000);
+  tick(53910);
+  tick(54200);
+  tick(54750);
   expect(game.getPhase()).toBe('running');
-  tick(62999);
+  tick(62749);
   expect(game.getState().bots).toHaveLength(0);
-  tick(63001);
+  tick(62751);
   expect(game.getState().bots.map(bot => bot.name)).toEqual(['Thầy Sơn']);
   game.destroy();
 });
@@ -450,4 +547,97 @@ it('chế độ vô tận không dừng ở 3000m và trả độ cao đạt đ�
     reason: 'lava',
   });
   game.destroy();
+});
+
+function visibilityClock() {
+  let hidden = false;
+  let now = 0;
+  vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
+  vi.spyOn(performance, 'now').mockImplementation(() => now);
+  return (value, time) => {
+    hidden = value;
+    now = time;
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+}
+
+it('ẩn tab 30 giây dừng RAF, xóa input và giữ thời gian leo/lịch bot khi quay lại', () => {
+  const changeVisibility = visibilityClock();
+  const onFrame = vi.fn();
+  const game = createGame(canvas, {}, { enableIntro: true, initialPhase: 'running', onFrame });
+  tick(0);
+  tick(7000);
+  expect(game.getSnapshot().elapsedMs).toBe(7000);
+  expect(game.getState().bots).toHaveLength(0);
+  game.setDirection('right', true);
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD' }));
+  const lateCallback = [...pending.values()][0];
+  changeVisibility(true, 7000);
+  expect(pending.size).toBe(0);
+  const framesBefore = onFrame.mock.calls.length;
+  lateCallback(8000);
+  tick(37000);
+  expect(onFrame).toHaveBeenCalledTimes(framesBefore);
+  expect(game.getSnapshot().elapsedMs).toBe(7000);
+  changeVisibility(false, 37000);
+  changeVisibility(false, 37000);
+  expect(pending.size).toBe(1);
+  tick(37000);
+  expect(onFrame.mock.lastCall[0].dt).toBe(0);
+  expect(game.getSnapshot().elapsedMs).toBe(7000);
+  expect(game.getState().bots).toHaveLength(0);
+  tick(38000);
+  expect(game.getSnapshot().elapsedMs).toBe(8000);
+  expect(game.getState().player.vx).toBe(0);
+  expect(game.getState().bots).toHaveLength(1);
+  expect(game.getState().ui.botEntrances[0].startMs).toBe(8000);
+  game.destroy();
+});
+
+it('ẩn tab giữ nguyên mốc slide intro và tiếp tục đúng camera/blur khi hiện lại', () => {
+  const changeVisibility = visibilityClock();
+  const game = createGame(canvas, {}, { enableIntro: true });
+  tick(0);
+  game.startFromTitle();
+  tick(100);
+  tick(700);
+  const camera = game.getState().world.cameraY;
+  const blur = game.getState().ui.motionBlurPx;
+  changeVisibility(true, 700);
+  expect(pending.size).toBe(0);
+  changeVisibility(false, 30700);
+  tick(30700);
+  expect(game.getPhase()).toBe('intro_sliding');
+  expect(game.getState().world.cameraY).toBe(camera);
+  expect(game.getState().ui.motionBlurPx).toBe(blur);
+  tick(31300);
+  expect(game.getState().world.cameraY).toBeCloseTo(-2400 + 24 * 53.625664, 2);
+  tick(32500);
+  expect(game.getPhase()).toBe('intro_menu_delay');
+  expect(game.getState().world.cameraY).toBe(0);
+  game.destroy();
+});
+
+it('giữ pause thủ công qua hide/show, destroy khi ẩn không khởi động lại RAF', () => {
+  const changeVisibility = visibilityClock();
+  const game = createGame(canvas, {}, { enableIntro: true, initialPhase: 'running' });
+  tick(0);
+  tick(500);
+  game.togglePause();
+  changeVisibility(true, 500);
+  changeVisibility(false, 30500);
+  tick(30500);
+  tick(31500);
+  expect(game.getPhase()).toBe('paused');
+  expect(game.getSnapshot().elapsedMs).toBe(500);
+  game.togglePause();
+  tick(31516);
+  expect(game.getSnapshot().elapsedMs).toBe(516);
+  const remove = vi.spyOn(document, 'removeEventListener');
+  changeVisibility(true, 31516);
+  game.destroy();
+  expect(remove).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+  changeVisibility(false, 61516);
+  tick(61516);
+  expect(pending.size).toBe(0);
 });

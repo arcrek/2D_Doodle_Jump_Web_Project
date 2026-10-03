@@ -21,7 +21,7 @@ import {
   SCREEN_HEIGHT
 } from './world.js';
 import { render } from './render.js';
-import { createStartingBots, updateBotAI, onBotBounce } from './bots.js';
+import { createStartingBots, findCompanionPlatform } from './bots.js';
 import { sound, soundManager } from './audio.js';
 import {
   createLavaState,
@@ -29,7 +29,7 @@ import {
   createPowerupState,
   spawnPowerupsForPlatforms,
   updatePowerups,
-  updateBotPhysics,
+  updateBotCompanion,
 } from './mechanics.js';
 import {
   CAMERA_SIGHT_RATIO,
@@ -38,9 +38,9 @@ import {
   POWERUP_ROCKET_CHANCE,
   POWERUP_TYPES,
 } from './index.js';
-import { getRanking } from './ranking.js';
 import { preloadSprites } from './sprites.js';
 import { INTRO_CAMERA_DURATION_MS, sampleIntroCameraMotion } from './intro-camera-motion.js';
+import { BOT_CUT_IN_DURATION_MS } from './bot-entrance.js';
 
 // =============================================================================
 // CÁC HÀM TOÁN HỌC & HẰNG SỐ CẤU HÌNH THỜI GIAN CHUYỂN CẢNH
@@ -81,13 +81,14 @@ const BOT_JOIN_TIMES_MS = [8000, 16000, 24000, 32000];
 // Thời gian nhún nhảy nhẹ khởi động (Warmup Hop) trước khi phóng lên (550ms)
 const RESTART_WARMUP_MS = 550;
 
-// Thời gian camera trượt ngược từ mặt đất bay lên lại bầu trời (1000ms)
+// Thời gian camera trượt ngược từ mặt đất bay lên lại bầu trời (2400ms)
 const RETURN_DURATION_MS = 2400;
-
-// Thời gian hiệu ứng rèm gạt Wipe quét qua toàn màn hình khi bấm Chơi Lại (650ms)
-const WIPE_DURATION_MS = 900;
 const LAVA_EXIT_DURATION_MS = 650;
+// Leave room for the warning strip and embers above the lava surface.
 const LAVA_EXIT_CLEARANCE = 180;
+
+// Thời gian hiệu ứng rèm gạt Wipe quét qua toàn màn hình khi bấm Chơi Lại (900ms)
+const WIPE_DURATION_MS = 900;
 
 // Vận tốc nảy nhẹ trong nhịp nhún chờ (khởi động không nhảy quá cao: -340 px/s)
 const WARMUP_HOP_VY = -340;
@@ -182,6 +183,9 @@ export function createGame(canvas, config, {
     nickname: config?.nickname || 'Bạn',
     phase,
     ui: {
+      botEntrances: [],
+      botEntranceClockMs: 0,
+      reduceMotion,
       isStartButtonHovered: false,   // Chuột có đang rê vào nút START trên Canvas không
       wipeProgress: 0,               // Tiến độ hiệu ứng gạt màn hình (0.0 -> 1.0)
       platformReveal: 0,             // Tiến độ hiện bệ xuất phát (0.0 -> 1.0)
@@ -201,6 +205,8 @@ export function createGame(canvas, config, {
   let frameCount = 0;                // Tổng số khung hình đã vẽ
   let stopped = false;               // Cờ báo hiệu game đã bị hủy (destroy)
   let frameId;                       // ID của requestAnimationFrame
+  let hiddenAt = typeof document !== 'undefined' && document.hidden ? performance.now() : null;
+  let hiddenDurationMs = 0;
   let maxHeight = 0;                 // Kỷ lục độ cao tối đa leo được trong ván (m)
   let isGameOver = false;            // Cờ chống gọi onGameOver lặp lại nhiều lần
   let elapsedMs = 0;                 // Tổng thời gian leo thực tế (mili-giây)
@@ -239,16 +245,13 @@ export function createGame(canvas, config, {
       ? Math.max(0, Math.round(state.world.lava.y - (state.player.y + state.player.height)))
       : null;
 
-    // Tính bảng xếp hạng so sánh người chơi với 4 Bot
-    const ranking = getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots);
-
     // Gửi dữ liệu ra React Component (HUD)
     onStats?.({
       currentHeight,
       maxHeight,
       elapsedMs: Math.round(elapsedMs),
-      placement: ranking.findIndex(item => item.id === 'player') + 1,
-      ranking,
+      placement: 1,
+      ranking: [],
       player: state.player,
       bots: state.bots,
       lavaDistance,
@@ -273,7 +276,6 @@ export function createGame(canvas, config, {
     }
     publishStats(time);
 
-    const ranking = getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots);
     setPhase('finished');
 
     // Phát âm thanh chiến thắng khi về đích hoặc âm thanh rơi chết
@@ -290,10 +292,10 @@ export function createGame(canvas, config, {
       finalHeight: maxHeight,
       finalMaxHeight: maxHeight,
       elapsedMs: validElapsed,
-      placement: Math.max(1, Math.min(5, ranking.findIndex(item => item.id === 'player') + 1)),
+      placement: 1, // Tương thích API lưu lượt solo, các thầy không thi đua.
       outcome,
       reason,
-      ranking
+      ranking: []
     });
   }
 
@@ -302,6 +304,7 @@ export function createGame(canvas, config, {
    * @param {string} newPhase - Trạng thái mới
    */
   function setPhase(newPhase) {
+    if (!['running', 'paused'].includes(newPhase)) state.ui.botEntrances = [];
     if (newPhase === 'warmup_hop' && phase !== 'warmup_hop') warmupStartTime = null;
     phase = newPhase;
     state.phase = newPhase;
@@ -312,16 +315,17 @@ export function createGame(canvas, config, {
   // CÁC HÀM XỬ LÝ CHUYỂN CẢNH (TRANSITION TRIGGERS)
   // ===========================================================================
 
-  /**
-   * [TRỌNG TÂM] Kích hoạt Camera trượt từ bầu trời xuống mặt đất (Slide Down)
-   * Được gọi khi người chơi bấm nút "START" hoặc ấn Space/Enter ở màn hình đầu tiên.
-   */
   function clearReturnState() {
     returnStartTime = null;
     returnLavaFromScreenY = null;
     delete state.ui.returnTitleWorldY;
     delete state.ui.returnDrawingTime;
   }
+
+  /**
+   * [TRỌNG TÂM] Kích hoạt Camera trượt từ bầu trời xuống mặt đất (Slide Down)
+   * Được gọi khi người chơi bấm nút "START" hoặc ấn Space/Enter ở màn hình đầu tiên.
+   */
 
 
   function startSlideDown() {
@@ -392,7 +396,7 @@ export function createGame(canvas, config, {
     // Tìm một bệ đỡ an toàn không bị gãy gần người chơi để bot đáp xuống
     const safePlatforms = state.world.platforms.filter(platform => !platform.broken && ['standard', 'bouncy'].includes(platform.type)
       && platform.y - state.world.cameraY > 145 && platform.y - state.world.cameraY < canvas.height - 65);
-    let platform = safePlatforms.sort((a, b) => Math.abs(a.y - state.player.y) - Math.abs(b.y - state.player.y))[0];
+    let platform = findCompanionPlatform(bot, safePlatforms, state.player, state.bots, state.world.lava?.y);
 
     // Nếu không có bệ an toàn gần đó, tạo tạm 1 bệ đỡ
     if (!platform) {
@@ -414,11 +418,16 @@ export function createGame(canvas, config, {
     bot.entranceToX = platform.x + (platform.width - bot.width) / 2;
     bot.entranceY = bot.y;
     bot.entranceStartedAt = elapsedMs;
-    bot.progress = Math.max(0, Math.round(388 - bot.y));
+    bot.entrancePlatform = platform;
     bot.lastPlatformY = platform.y;
     state.bots.push(bot);
+    state.ui.botEntrances = [...state.ui.botEntrances, {
+      botId: bot.id, type: bot.type, name: bot.name,
+      side: fromLeft ? 'left' : 'right', startMs: elapsedMs,
+      impactWorldPosition: null, impactPlayed: false,
+    }].slice(-4);
     nextBotIndex += 1;
-    sound.playBotEntrance();
+    if (!soundManager.isMuted) sound.playBotEntrance(soundManager.config?.sfx?.botEntrance?.volume ?? 0.065);
   }
 
   /**
@@ -560,6 +569,28 @@ export function createGame(canvas, config, {
     window.addEventListener('keydown', handleKeyDown);
   }
 
+  function handleVisibilityChange() {
+    if (stopped) return;
+    if (document.hidden) {
+      if (hiddenAt !== null) return;
+      hiddenAt = performance.now();
+      cancelAnimationFrame(frameId);
+      input.reset();
+      previousTime = null;
+    } else if (hiddenAt !== null) {
+      // RAF timestamps and all intro/cut-in timers share this foreground clock.
+      // Excluding hidden time prevents a return to the tab from fast-forwarding
+      // the intro or spawning every remaining bot in the first frame.
+      hiddenDurationMs += Math.max(0, performance.now() - hiddenAt);
+      hiddenAt = null;
+      previousTime = null;
+      frameId = requestAnimationFrame(frame);
+    }
+  }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+  }
+
   // Nếu có tùy chọn renderInitial -> vẽ ngay frame 0 đồng bộ để chống chớp trắng màn hình
   if (renderInitial) {
     render(context, state);
@@ -569,7 +600,8 @@ export function createGame(canvas, config, {
   // VÒNG LẶP TRÒ CHƠI CHÍNH (MAIN GAME LOOP - 60 FPS)
   // ===========================================================================
   function frame(time) {
-    if (stopped) return;
+    if (stopped || hiddenAt !== null) return;
+    time -= hiddenDurationMs;
 
     // Nếu game đang ở trạng thái Tạm Dừng (Paused), bỏ qua cập nhật vật lý nhưng vẫn giữ frame
     if (isPaused?.() || (phase === 'paused')) {
@@ -697,6 +729,7 @@ export function createGame(canvas, config, {
         state.ui.revealProgress = 0;
         state.ui.revealRanks = [];
         state.ui.playerEntranceProgress = 0;
+        state.ui.botEntranceClockMs = 0;
         state.ui.wipeProgress = 0;
         state.ui.motionBlurPx = 0;
         state.player.x = 300;
@@ -754,6 +787,7 @@ export function createGame(canvas, config, {
     // -------------------------------------------------------------------------
     else if (phase === 'running') {
       elapsedMs += rawDt * 1000;
+      state.ui.botEntranceClockMs = elapsedMs;
 
       // Kiểm tra xem đã đến lúc thả thêm Bot đối thủ vào cuộc đua chưa
       while (nextBotIndex < BOT_JOIN_TIMES_MS.length && elapsedMs >= BOT_JOIN_TIMES_MS[nextBotIndex]) joinNextBot();
@@ -796,8 +830,6 @@ export function createGame(canvas, config, {
 
       // 7. Cập nhật trí tuệ nhân tạo (AI) và vật lý cho 4 Bot
       state.bots.forEach(bot => {
-        if (bot.isDead) return;
-
         // Nếu bot đang trong hoạt cảnh bay vào bệ
         if (bot.isEntering) {
           const progress = Math.min(1, (elapsedMs - bot.entranceStartedAt) / BOT_ENTRANCE_DURATION_MS);
@@ -807,23 +839,19 @@ export function createGame(canvas, config, {
             bot.isEntering = false;
             bot.y = bot.entranceY;
             bot.vy = JUMP_VELOCITY;
+            const entry = state.ui.botEntrances.find(item => item.botId === bot.id);
+            if (entry && !entry.impactPlayed) {
+              entry.impactWorldPosition = { x: bot.x + bot.width / 2, y: bot.y + bot.height };
+              entry.impactPlayed = true;
+              soundManager.playSFX('botImpact');
+            }
           }
           return;
         }
 
-        // Cập nhật tìm bệ thông minh của Bot
-        updateBotAI(bot, state.world.platforms, dt, state.bots, state.world.cameraY);
-
-        // Trọng lực, tiếp đất và cooldown dậm nhảy của Bot
-        updateBotPhysics(bot, state.world.platforms, dt);
-
-        // Chỉ đánh dấu tử nạn khi rơi quá sâu khỏi đáy màn hình nếu không có Dung nham (fallback mode).
-        // Khi có Dung nham (Lava): Bot rơi ra ngoài màn hình KHÔNG chết, chỉ tử nạn khi chạm vào Dung nham (xử lý trong updateLava).
-        if (!state.world?.lava && bot.y - state.world.cameraY > canvas.height + 100) {
-          bot.isDead = true;
-          sound.playBotFall(bot.x / canvas.width);
-        }
+        updateBotCompanion(bot, state.world, state.player, dt, state.bots, canvas.height);
       });
+      state.ui.botEntrances = state.ui.botEntrances.filter(entry => elapsedMs - entry.startMs < BOT_CUT_IN_DURATION_MS);
 
       // 8. Cập nhật Dung nham dâng (Rising Lava)
       updateLava({
@@ -841,7 +869,6 @@ export function createGame(canvas, config, {
       if (currentHeight > maxHeight) {
         maxHeight = currentHeight;
       }
-      for (const bot of state.bots) bot.progress = Math.max(bot.progress || 0, Math.round(388 - bot.y));
       publishStats(time);
 
       // 8. Camera cuộn theo độ cao của người chơi (Camera Follow 2D)
@@ -927,7 +954,7 @@ export function createGame(canvas, config, {
   }
 
   // Khởi động vòng lặp game loop
-  frameId = requestAnimationFrame(frame);
+  if (hiddenAt === null) frameId = requestAnimationFrame(frame);
 
   // ===========================================================================
   // CÁC HÀM ĐIỀU KHIỂN CÔNG KHAI (PUBLIC API) TRẢ VỀ CHO REACT / CALLER
@@ -939,9 +966,13 @@ export function createGame(canvas, config, {
     destroy() {
       if (stopped) return;
       stopped = true;
+      state.ui.botEntrances = [];
       soundManager.stopBGM();
       input.destroy();
       cancelAnimationFrame(frameId);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
       if (canvas?.removeEventListener) {
         canvas.removeEventListener('pointerdown', handlePointerDown);
         canvas.removeEventListener('pointermove', handlePointerMove);
@@ -1015,7 +1046,7 @@ export function createGame(canvas, config, {
         height: Math.max(0, Math.round(388 - state.player.y)),
         maxHeight,
         elapsedMs: Math.round(elapsedMs),
-        ranking: getRanking({ id: 'player', name: state.nickname, progress: maxHeight }, state.bots),
+        ranking: [],
         lavaDistance: (state.world?.lava && isGameplayPhase)
           ? Math.max(0, Math.round(state.world.lava.y - (state.player.y + state.player.height)))
           : null,

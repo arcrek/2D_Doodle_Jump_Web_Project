@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bot entrance · Live preview</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#181b1e;color:#e4e7e9;font:14px system-ui,sans-serif}main{max-width:1280px;margin:auto;padding:24px}h1{font-size:20px;margin:0 0 8px}p{color:#a8b1b8;margin:0 0 22px;line-height:1.6}code{color:#e6ca8f}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-bottom:18px}label{display:flex;align-items:center;gap:8px}select,button{font:inherit;color:inherit;background:#282e33;border:1px solid #48515a;padding:8px 10px;border-radius:4px;cursor:pointer}button:focus-visible,select:focus-visible{outline:2px solid #e6ca8f}canvas{display:block;width:100%;height:auto;background:#faf7ed;border:1px solid #48515a}.timeline{display:flex;align-items:center;gap:14px;margin:16px 0}input[type=range]{flex:1;accent-color:#e6ca8f}output{min-width:80px;font-variant-numeric:tabular-nums}#status{color:#aac6ae;font-size:12px}small{color:#a8b1b8}a{color:#e6ca8f}@media(max-width:600px){main{padding:12px}.controls{gap:10px}h1{font-size:18px}}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Bot entrance · Live preview</h1>
+    <p>Sửa <code>src/game/bot-entrance.js</code> rồi Ctrl+S — hiệu ứng cập nhật ngay. Không cần chơi lại hay chờ bot vào.</p>
+    <div class="controls">
+      <label>Bot <select id="bot"><option value="0">Thầy Sơn</option><option value="1">Thầy Việt</option><option value="2">Thầy Quang</option><option value="3">Thầy Nam</option></select></label>
+      <label>Tốc độ <select id="speed"><option value="1">1×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option></select></label>
+      <button id="play" type="button">Tạm dừng</button>
+      <button id="replay" type="button">Chạy lại</button>
+      <label><input id="reduce" type="checkbox"> Reduced motion</label>
+    </div>
+    <canvas id="preview" width="960" height="540" aria-label="Preview hiệu ứng bot Doodle stop-motion"></canvas>
+    <label class="timeline">Thời gian <input id="time" type="range" min="0" max="1600" step="1" value="0" aria-label="Thời gian hiệu ứng"><output id="clock">0 ms</output></label>
+    <p id="status" role="status">Đang dùng code hiện tại · tự chạy lặp</p>
+    <small>Kéo thời gian để giữ đúng một khung hình. Lưu code khi đang dừng sẽ cập nhật ngay tại khung đó. <a href="/">Về game</a></small>
+  </main>
+  <script type="module" src="/src/dev/bot-preview.js"></script>
+</body>
+</html>

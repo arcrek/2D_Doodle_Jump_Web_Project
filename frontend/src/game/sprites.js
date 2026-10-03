@@ -1,3 +1,4 @@
+import { BOT_SPRITE_VARIANTS } from './bot-sprite-variants.js';
 
 const sprites = new Map();
 
@@ -16,7 +17,7 @@ export const SKIN_PATHS = {
 export const BOT_PATHS = {
   NOVICE: '/images/bots/son.png',
   STANDARD: '/images/bots/viet.png',
-  SPEEDRUNNER: '/images/bots/hiep.png',
+  SPEEDRUNNER: '/images/bots/quang.png',
   PERFECT: '/images/bots/nam.png',
 };
 
@@ -59,7 +60,7 @@ export function preloadSprites() {
   if (typeof Image === 'undefined') return;
   for (const path of [
     ...Object.values(SKIN_PATHS),
-    ...Object.values(BOT_PATHS),
+    ...Object.values(BOT_SPRITE_VARIANTS).flatMap(variants => variants.map(variant => variant.path)),
     ...Object.values(PLATFORM_PATHS),
     ...Object.values(POWERUP_PATHS),
     ...Object.values(POWERUP_EFFECT_PATHS),
@@ -77,6 +78,22 @@ export function isSpriteReady(path) {
 
 export function drawSprite(ctx, path, x, y, width, height, sourceRect) {
   if (!path) return false;
+  // Keep the public master paths/crop coordinates compatible. Normal gameplay
+  // uses pre-cropped images; it never needs to decode the large master portraits.
+  const variant = sourceRect && BOT_SPRITE_VARIANTS[path]?.find(item => (
+    sourceRect.length === 4 && item.sourceRect.every((value, index) => value === sourceRect[index])
+  ));
+  if (variant) {
+    const sprite = loadSprite(variant.path);
+    if (sprite?.ready && typeof ctx.drawImage === 'function') {
+      if (variant.drawRect) ctx.drawImage(sprite.image, ...variant.drawRect, x, y, width, height);
+      else ctx.drawImage(sprite.image, x, y, width, height);
+      return true;
+    }
+    // A missing derivative must not remove a bot. Load the original only on
+    // failure, preserving the existing fallback while the image is in flight.
+    if (!sprite?.failed) return false;
+  }
   const sprite = loadSprite(path);
   if (!sprite?.ready || typeof ctx.drawImage !== 'function') return false;
   if (sourceRect) {

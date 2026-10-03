@@ -741,7 +741,7 @@ Bot là **AI theo luật/heuristic**: chương trình tự chọn một mục ti
 |---|---|---|
 | Thầy Sơn | NOVICE | Ưu tiên bệ gần/rộng, phản ứng chậm, sai số ngắm lớn |
 | Thầy Việt | STANDARD | Chọn bệ tương đối gần và an toàn |
-| Thầy Hiệp | SPEEDRUNNER | Chấm điểm cao độ và khoảng cách để leo tích cực |
+| Thầy Quang | SPEEDRUNNER | Chấm điểm cao độ và khoảng cách để leo tích cực |
 | Thầy Nam | PERFECT | Ưu tiên bệ không bị bot khác nhắm, sai số nhỏ |
 
 Tên PERFECT không có nghĩa là chắc chắn không chết. Các bot có vận tốc, sai số ngắm, thời gian phản ứng và rủi ro.

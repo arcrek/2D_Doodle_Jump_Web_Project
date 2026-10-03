@@ -310,6 +310,8 @@ class SoundEngine {
     this.noiseBuffer = null;
     this.bgmPlaying = false;
     this.schedulerTimer = null;
+    this.resumeBGMWhenVisible = false;
+    this.preserveBGMPositionOnVisibility = false;
     this.currentStep = 0;
     this.nextStepTime = 0;
     this.lastBotBounceTime = 0;
@@ -322,7 +324,7 @@ class SoundEngine {
     // Setup global listeners in browser environment
     if (typeof window !== 'undefined') {
       const unlockInteraction = () => {
-        if (!this.enabled) return;
+        if (!this.enabled || (typeof document !== 'undefined' && document.hidden)) return;
         this.ensureContext();
         if (this.ctx && this.ctx.state === 'suspended') {
           this.ctx.resume().catch(() => {});
@@ -340,12 +342,29 @@ class SoundEngine {
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
           if (document.hidden) {
+            const shouldResume = this.bgmPlaying || this.resumeBGMWhenVisible;
+            const preservePosition = this.bgmPlaying || this.preserveBGMPositionOnVisibility;
+            this.pauseBGM();
+            this.resumeBGMWhenVisible = shouldResume;
+            this.preserveBGMPositionOnVisibility = preservePosition;
             if (this.ctx && this.ctx.state === 'running') {
               this.ctx.suspend().catch(() => {});
             }
           } else {
+            const shouldResume = this.resumeBGMWhenVisible;
+            const preservePosition = this.preserveBGMPositionOnVisibility;
+            this.resumeBGMWhenVisible = false;
+            this.preserveBGMPositionOnVisibility = false;
             if (this.enabled && this.ctx && this.ctx.state === 'suspended') {
               this.ctx.resume().catch(() => {});
+            }
+            if (this.enabled && shouldResume) {
+              if (preservePosition && this.ctx) {
+                // AudioContext time was suspended too: retain the phrase and
+                // already scheduled notes, rather than restarting bar zero.
+                this.bgmPlaying = true;
+                if (!this.schedulerTimer) this.schedulerTimer = setInterval(() => this.scheduleLoop(), SCHEDULE_INTERVAL_MS);
+              } else this.startBGM();
             }
           }
         });
@@ -636,6 +655,12 @@ class SoundEngine {
 
   startBGM() {
     if (!this.enabled) return;
+    if (typeof document !== 'undefined' && document.hidden) {
+      this.resumeBGMWhenVisible = true;
+      return;
+    }
+    this.resumeBGMWhenVisible = false;
+    this.preserveBGMPositionOnVisibility = false;
     this.ensureContext();
     if (!this.ctx) return;
 
@@ -669,6 +694,8 @@ class SoundEngine {
   }
 
   stopBGM() {
+    this.resumeBGMWhenVisible = false;
+    this.preserveBGMPositionOnVisibility = false;
     this.bgmPlaying = false;
     if (this.schedulerTimer) {
       clearInterval(this.schedulerTimer);
@@ -684,6 +711,8 @@ class SoundEngine {
   }
 
   pauseBGM() {
+    this.resumeBGMWhenVisible = false;
+    this.preserveBGMPositionOnVisibility = false;
     this.bgmPlaying = false;
     if (this.schedulerTimer) {
       clearInterval(this.schedulerTimer);
@@ -1437,8 +1466,8 @@ class SoundEngine {
   }
 
   // Playful swoop whistle when a bot joins the race
-  playBotEntrance() {
-    if (!this.enabled) return;
+  playBotEntrance(volume = 0.065) {
+    if (!this.enabled || volume <= 0) return;
     this.ensureContext();
     if (!this.ctx) return;
 
@@ -1451,7 +1480,7 @@ class SoundEngine {
       osc.frequency.setValueAtTime(320, now);
       osc.frequency.exponentialRampToValueAtTime(740, now + 0.16);
 
-      gain.gain.setValueAtTime(0.065, now);
+      gain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
       osc.connect(gain);
@@ -1573,7 +1602,22 @@ export class SoundManager {
 
     try {
       const now = ctx.currentTime;
-      if (name === 'jump') {
+      if (name === 'botImpact') {
+        const volume = Math.max(0, Math.min(1, this.config?.sfx?.botImpact?.volume ?? 0.08));
+        if (volume <= 0) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(55, now + 0.12);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+        osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+      } else if (name === 'jump') {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';

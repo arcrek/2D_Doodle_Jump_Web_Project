@@ -48,13 +48,17 @@ Các bệ cách nhau 70 pixel theo chiều cao, có khoảng dự phòng so vớ
 
 Tự thử WORLD-01: đủ sáu bệ, đúng bảng, nằm trong khung; gọi `createWorld()` hai lần rồi sửa bệ của lần đầu phải không ảnh hưởng lần sau.
 
-## 4. Bot và xếp hạng — BOT-01
+## 4. Các thầy đồng hành — BOT-01
 
-`createBots(profiles)` nhận mảng bốn cấu hình từ `config.bots`, sao chép từng phần tử rồi thêm `progress: 0`. Không sửa mảng hoặc phần tử nhận vào.
+Các thầy đồng hành với người chơi, không có điểm hoặc thứ hạng và không chết khi rơi/chạm dung nham. Chỉ người chơi được tính điểm. Contract hiện tại nằm ở [bots.js](../frontend/src/game/bots.js), [mechanics.js](../frontend/src/game/mechanics.js) và [engine.js](../frontend/src/game/engine.js).
 
-`getRanking(player, bots)` nhận người chơi dạng `{id: 'player', progress: 100}` và bốn bot có `id`, `progress`. Trả mảng mới, `progress` lớn đứng trước; bằng nhau thì `id` tăng dần theo ký tự. Không sửa dữ liệu nhận vào.
+`createBots(profiles)` sao chép từng cấu hình nhận vào, không tự thêm `progress`, không sửa dữ liệu nguồn. AI chọn bệ khác nhau khi có lựa chọn trong tầm; nếu chỉ một bệ phù hợp thì vẫn dùng chung.
 
-Tự dùng mẫu: player = 100; teacher-1 = 80; teacher-2 = 120; teacher-3 = 100; teacher-4 = 0. Thứ tự phải là **teacher-2 → player → teacher-3 → teacher-1 → teacher-4**. Không cần đợi bot chạy hay người chơi di chuyển thật.
+`updateBotCompanion` xử lý cả nhảy thường và `catchUp`: khi tụt khỏi đáy màn hình, thầy nhảy cao theo quỹ đạo đến bệ gần người chơi; khi lên quá cao, thầy đứng trên bệ chờ camera tới rồi nhảy tiếp. Engine và [simulation.js](../frontend/src/game/simulation.js) dùng cùng cập nhật này; camera theo người chơi.
+
+[ranking.js](../frontend/src/game/ranking.js) là utility của bài tập lịch sử, không được dùng trong gameplay solo hiện tại. Snapshot solo trả `ranking: []`; [GamePage.jsx](../frontend/src/pages/GamePage.jsx) lưu lượt với `placement: 1` để tương thích [API](API.md), không biểu thị thi đua với thầy. API kỷ lục vẫn tương thích; nút và bảng xếp hạng đã bỏ khỏi giao diện.
+
+Tự kiểm tra theo [companions.test.js](../frontend/src/tests/companions.test.js): phân tán mục tiêu phù hợp, dùng chung khi thiếu bệ, bắt kịp tới bệ di động/đổi bệ mất, chờ camera và bất tử. Kiểm tra HUD/kết quả solo ở [completion.test.jsx](../frontend/src/tests/completion.test.jsx).
 
 ## 5. Dòng thông tin — UI-01
 

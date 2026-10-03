@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import GameCanvas from '../components/GameCanvas.jsx';
-import { TopBar, FloatingHUD, StartMenu, GameOverModal, LeaderboardModal } from '../components/HUD.jsx';
+import { TopBar, FloatingHUD, StartMenu, GameOverModal, HistoryModal } from '../components/HUD.jsx';
 import { useBackend } from '../hooks/useBackend.js';
 import { postJson } from '../services/api.js';
 import { useTranslation } from '../i18n/I18nContext.jsx';
 
-const EMPTY_STATS = { height: 0, maxHeight: 0, placement: 1, ranking: [], lavaDistance: null };
+const EMPTY_STATS = { height: 0, maxHeight: 0, lavaDistance: null };
 
 function playerId() {
   try {
@@ -41,7 +41,7 @@ export default function GamePage() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [restartKey, setRestartKey] = useState(0);
   const [playerProfile, setPlayerProfile] = useState(() => ({ nickname: t('game.default_player_name'), skinId: 'doodle' }));
-  const [recordMode, setRecordMode] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [save, setSave] = useState({ status: '', message: '' });
   const gameRef = useRef(null);
   const runRef = useRef(null);
@@ -105,7 +105,7 @@ export default function GamePage() {
     setSave({ status: '', message: '' });
     setStats(EMPTY_STATS);
     setElapsedMs(0);
-    setRecordMode(null);
+    setHistoryOpen(false);
     if (gameRef.current?.returnToTitleMenu) {
       gameRef.current.returnToTitleMenu();
     } else {
@@ -118,12 +118,12 @@ export default function GamePage() {
     gameRef.current?.togglePause();
   }, []);
 
-  const handleUpdateStats = useCallback(({ currentHeight, maxHeight, elapsedMs: gameElapsed, placement, ranking, lavaDistance }) => {
-    setStats({ height: currentHeight, maxHeight, placement, ranking, lavaDistance });
+  const handleUpdateStats = useCallback(({ currentHeight, maxHeight, elapsedMs: gameElapsed, lavaDistance }) => {
+    setStats({ height: currentHeight, maxHeight, lavaDistance });
     setElapsedMs(gameElapsed);
   }, []);
 
-  const handleGameOver = useCallback(async ({ finalHeight, finalMaxHeight, elapsedMs: finalElapsed, placement, ranking, outcome, reason }) => {
+  const handleGameOver = useCallback(async ({ finalHeight, finalMaxHeight, elapsedMs: finalElapsed, outcome, reason }) => {
     const isEndless = Boolean(gameConfig?.isEndless || gameConfig?.finish_height == null);
     const finishHeight = backend.config?.finish_height ?? 3000;
     const maxDuration = backend.config?.max_duration_ms ?? 180000;
@@ -132,10 +132,9 @@ export default function GamePage() {
     const validHeight = isEndless ? achievedHeight : Math.min(finishHeight, achievedHeight);
     const validOutcome = isEndless ? 'dnf' : (validHeight >= finishHeight ? 'finished' : (outcome === 'finished' ? 'finished' : 'dnf'));
     const validElapsed = Math.max(1, isEndless ? Math.round(finalElapsed || 1) : Math.min(maxDuration, Math.round(finalElapsed || 1)));
-    const validPlacement = Math.max(1, Math.min(5, Math.round(placement) || 1));
     const rulesVersion = isEndless ? 'endless' : (backend.config?.rules_version || 'v1');
 
-    setStats({ height: validHeight, maxHeight: validHeight, placement: validPlacement, ranking, outcome: validOutcome, reason });
+    setStats({ height: validHeight, maxHeight: validHeight, outcome: validOutcome, reason });
     setElapsedMs(validElapsed);
     setPhase('finished');
     const run = runRef.current;
@@ -153,7 +152,7 @@ export default function GamePage() {
         height: validHeight,
         elapsed_ms: validElapsed,
         outcome: validOutcome,
-        placement: validPlacement,
+        placement: 1,
       });
       setSave({ status: 'saved', message: t('save.saved') });
     } catch (error) {
@@ -194,14 +193,11 @@ export default function GamePage() {
                 onTogglePause={isHudVisible ? handleTogglePause : undefined}
                 onRestart={handleRestart} onExitToMenu={handleExitToMenu} />
             </div>
-            {/* Thanh HUD nổi (Điểm số, Kỷ lục, Đua top) chỉ mờ hiện khi vào 'running' */}
+            {/* Điểm số và kỷ lục hiện khi vào lượt chơi. */}
             <div className={`hud-floating-container ${isHudVisible ? 'is-visible' : 'is-hidden'}`} aria-hidden={!isHudVisible}>
               <FloatingHUD
                 currentHeight={stats.height}
                 maxHeight={stats.maxHeight}
-                nickname={playerProfile.nickname}
-                ranking={stats.ranking}
-                lavaDistance={stats.lavaDistance}
               />
             </div>
 
@@ -225,8 +221,7 @@ export default function GamePage() {
                 initialNickname={playerProfile.nickname}
                 initialSkin={playerProfile.skinId}
                 onStartGame={handleStartGame}
-                onOpenLeaderboard={() => setRecordMode('leaderboard')}
-                onOpenHistory={() => setRecordMode('history')}
+                onOpenHistory={() => setHistoryOpen(true)}
               />
             )}
 
@@ -236,7 +231,6 @@ export default function GamePage() {
               height={stats.maxHeight || stats.height}
               elapsedMs={elapsedMs}
               nickname={playerProfile.nickname}
-              placement={stats.placement}
               outcome={stats.outcome}
               reason={stats.reason}
               save={save}
@@ -245,8 +239,8 @@ export default function GamePage() {
               onExitToMenu={handleExitToMenu}
             />
 
-            {recordMode && (
-              <LeaderboardModal mode={recordMode} playerId={playerId()} onClose={() => setRecordMode(null)} rulesVersion={gameConfig?.isEndless ? 'endless' : (backend.config?.rules_version || 'v1')} offline={backend.offline} />
+            {historyOpen && (
+              <HistoryModal playerId={playerId()} onClose={() => setHistoryOpen(false)} offline={backend.offline} />
             )}
           </GameCanvas>
         </div>

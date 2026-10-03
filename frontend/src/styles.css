@@ -749,30 +749,6 @@ button:focus-visible {
   border-radius: 6px;
 }
 
-.leaderboard-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  text-align: left;
-}
-
-.leaderboard-table th, .leaderboard-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #eee5d7;
-}
-
-.leaderboard-table th {
-  background: #f0e6d6;
-  font-weight: bold;
-  color: #5c5344;
-  position: sticky;
-  top: 0;
-}
-
-.leaderboard-table tr:nth-child(even) {
-  background: #faf6ef;
-}
-
 .rank-col {
   font-weight: bold;
   color: var(--secondary);
@@ -1011,6 +987,48 @@ body, main, .game-layout-container, .canvas-wrapper {
 .doodle-result-card .stat-label, .doodle-result-card .modal-subtitle { animation-delay: -.43s; }
 .doodle-result-card button:nth-child(2) span { animation-delay: -.69s; }
 
+.doodle-history-card {
+  position: relative; isolation: isolate;
+  width: min(92vw, 480px); padding: 30px 28px 26px;
+  color: #3d3b31; font-family: 'Doodle Hand', 'Segoe UI', sans-serif;
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+}
+.doodle-history-card > .pencil-frame { z-index: -1; }
+.history-heading { text-align: left; padding: 0 0 12px; }
+.history-eyebrow { margin: 0 0 4px; font-size: 11px; letter-spacing: 1.4px; color: #77745f; }
+.doodle-history-card .modal-title { color: #36372f; font-size: 30px; line-height: 1.15; }
+.doodle-history-card .modal-subtitle { margin: 6px 0 0; font-size: 14px; color: #77745f; }
+.history-table-scroll { max-height: min(380px, 48dvh); overflow: auto; scrollbar-color: #aaa387 #fffaf0; }
+.history-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 17px; line-height: 1.3; table-layout: fixed; }
+.history-table th, .history-table td { padding: 9px 6px; border-bottom: 1px solid #d4cfbc; }
+.history-table th { position: sticky; top: 0; z-index: 1; background: #f3edcf; border-bottom: 2px solid #6c6b58; color: #505340; font-size: 14px; font-weight: 400; }
+.history-table th:first-child { width: 13%; }
+.history-table th:nth-child(2) { width: 35%; }
+.history-table th:nth-child(n+3), .history-table td:nth-child(n+3) { text-align: right; white-space: nowrap; }
+.history-table td:first-child { color: #8b8774; font-size: 14px; }
+.history-table td:nth-child(3) { color: #375841; }
+.history-table .history-player { overflow-wrap: anywhere; }
+.history-table tbody tr:nth-child(even) { background: rgb(229 222 195 / 15%); }
+.history-message { margin: 16px 0; padding: 24px 12px; text-align: center; font-size: 18px; border-top: 1px dashed #b7ae92; border-bottom: 1px dashed #b7ae92; }
+.history-message p { margin: 0 0 8px; }
+.history-message small { font-size: 14px; color: #77745f; }
+.history-error { color: #914b32; }
+.history-footer { display: flex; justify-content: center; padding-top: 18px; }
+.history-action {
+  position: relative; isolation: isolate; min-height: 46px; min-width: 136px;
+  padding: 9px 22px; color: #36372f; font: 18px 'Doodle Hand', sans-serif;
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+}
+.history-action > .pencil-frame { z-index: -1; }
+.history-action:hover { background: transparent; transform: rotate(-1deg); }
+.history-action:focus-visible, .history-table-scroll:focus-visible { outline: 2px dashed #345d3d; outline-offset: 3px; }
+@media (max-width: 400px) {
+  .doodle-history-card { padding: 26px 18px 22px; }
+  .history-table { font-size: 16px; }
+  .history-table th, .history-table td { padding: 8px 4px; }
+  .history-table th { font-size: 13px; }
+}
+
 .menu-card::after {
   content: '';
   position: absolute;
@@ -1074,13 +1092,27 @@ body, main, .game-layout-container, .canvas-wrapper {
 .menu-card .menu-button-group .btn-start {
   background-image: url('/images/menu-ink-button-primary.svg');
 }
-.menu-card .menu-button-group .btn-leaderboard { background-image: url('/images/menu-ink-button-alt.svg'); }
 .menu-card .menu-button-group .btn-outline { width: 95%; margin-left: 3%; }
 .menu-card .menu-button-group button:hover { transform: translateY(-2px) rotate(-.5deg); filter: brightness(.97); }
 .menu-card .menu-button-group button:active { transform: translateY(1px) scale(.99); }
 .menu-card .menu-button-group button:focus-visible { outline: 3px solid #43785d; outline-offset: 3px; }
 .menu-header { margin-bottom: 12px; }
 .menu-game-title { font-family: 'Trebuchet MS', Arial, sans-serif; letter-spacing: .07em; }
+.menu-title-logo { display: block; width: 100%; max-width: 320px; height: auto; margin: 0 auto; overflow: visible; }
+.title-logo-layer { transform-box: fill-box; transform-origin: center; animation: titleLogoStopMotion 800ms steps(1, end) infinite; }
+.title-logo-subtitle { animation-delay: -266.667ms; }
+.title-logo-underline { animation-delay: -533.333ms; }
+@keyframes titleLogoStopMotion {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  16.667% { transform: translate(7px, -4px) rotate(.115deg); }
+  33.333% { transform: translate(-4px, 5px) rotate(-.143deg); }
+  50% { transform: translate(3px, -5px) rotate(.057deg); }
+  66.667% { transform: translate(-6px, 2px) rotate(-.086deg); }
+  83.333% { transform: translate(2px, 4px) rotate(.115deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-logo-layer { animation: none; }
+}
 .menu-controls-info { margin: 10px 0; }
 .menu-button-group { margin-top: 12px; }
 

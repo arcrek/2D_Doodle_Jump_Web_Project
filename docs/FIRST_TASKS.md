@@ -39,6 +39,8 @@ Chạy được dự án theo [START_HERE.md](START_HERE.md), rồi tìm tên m�
 
 ## Nguyễn Đình Phú Vinh — BOT-01
 
+> Bài tập dữ liệu và ranking dưới đây được giữ làm lịch sử. Gameplay solo hiện tại dùng các thầy đồng hành, không tính điểm hoặc xếp hạng thầy; xem [contract hiện tại](QUY_UOC_CHUNG.md#4-các-thầy-đồng-hành--bot-01).
+
 **A. Làm gì:** Tạo dữ liệu cho bốn đối thủ máy và xếp hạng cùng người chơi. Ai lên cao hơn thì đứng trước. Chưa cần làm bot chuyển động ở bước này.
 
 **B. Viết ở đâu:** `game/bots.js` viết `createBots(profiles)`: sao chép bốn cấu hình nhận vào, thêm `progress = 0`. `game/ranking.js` viết `getRanking(player, bots)`: trả danh sách mới theo `progress` giảm dần; bằng nhau thì theo `id` tăng dần.

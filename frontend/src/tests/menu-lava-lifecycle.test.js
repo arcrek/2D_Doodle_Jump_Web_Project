@@ -92,7 +92,7 @@ it('cleans lava and transient effects when reduced motion completes the menu ret
   tick(100);
   expect(game.getPhase()).toBe('intro_title');
   expect(state.world.lava).toBeUndefined();
-
+  expect(state.ui.botEntrances).toEqual([]);
   expect(state.ui.returnTitleWorldY).toBeUndefined();
 });
 

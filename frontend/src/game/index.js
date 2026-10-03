@@ -71,7 +71,7 @@ export const BOT_PROFILES = {
     jumpCooldown: 0,
   },
   SPEEDRUNNER: {
-    name: 'Thầy Hiệp',
+    name: 'Thầy Quang',
     speedMultiplier: 0.84,
     maxJumpReach: 120,
     reactionDelay: 0.04,

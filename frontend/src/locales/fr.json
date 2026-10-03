@@ -16,7 +16,7 @@
     "player_name_placeholder": "Entrez votre nom...",
     "name_required": "Veuillez entrer le nom du joueur (1–24 caractères).",
     "name_max_length": "Le nom du joueur doit comporter au maximum 24 caractères.",
-    "controls_title": "🎮 Commandes :",
+    "controls_title": "Commandes :",
     "controls_hint": "A / D ou ← / → pour se déplacer",
     "start_button": "▶ JOUER",
     "leaderboard_button": "Classement ↗",
@@ -52,7 +52,7 @@
     "phase_finished": "Terminé",
     "btn_resume": "▶ Reprendre (Échap)",
     "btn_pause": "⏸ Pause (Échap)",
-    "btn_restart": "🔄 Recommencer",
+    "btn_restart": "Recommencer",
     "aria_hud": "Panneau de statistiques du jeu",
     "aria_pause_resume": "Pause ou Reprendre",
     "aria_restart": "Recommencer depuis le début",
@@ -60,9 +60,9 @@
     "aria_ranking": "Classement de la course"
   },
   "game_over": {
-    "pause_title": "⏸ Partie en pause",
+    "pause_title": "Partie en pause",
     "holding_position": "Maintien de la position pour {name}",
-    "finish_win_title": "🏁 Ligne d'arrivée atteinte !",
+    "finish_win_title": "Ligne d'arrivée atteinte !",
     "finish_over_title": "Fin de partie",
     "congrats": "Félicitations pour avoir franchi la ligne d'arrivée !",
     "lava_death": "Englouti par la lave !",
@@ -95,7 +95,8 @@
     "default_player_name": "Joueur",
     "press_key_start": "Appuyez sur une touche pour démarrer !",
     "usth_edition": "★ ÉDITION MULTIJOUEUR USTH ★",
-    "start_btn_canvas": "▶ JOUER"
+    "start_btn_canvas": "▶ JOUER",
+    "new_page": "UNE NOUVELLE PAGE"
   },
   "save": {
     "saving": "Sauvegarde du résultat…",
@@ -111,5 +112,23 @@
     "lang_en": "Anglais",
     "lang_vi": "Vietnamien",
     "lang_fr": "Français"
+  },
+  "history": {
+    "eyebrow": "CARNET DES SAUTS",
+    "title": "Mon historique",
+    "subtitle": "10 dernières parties · Plus récentes en premier",
+    "loading": "Ouverture du carnet…",
+    "retry": "Réessayer",
+    "empty": "Aucune partie enregistrée.",
+    "empty_hint": "Terminez une partie pour l’ajouter au carnet.",
+    "col_run": "Partie",
+    "col_name": "Nom",
+    "col_height": "Hauteur",
+    "col_time": "Temps",
+    "close": "Fermer le carnet",
+    "aria_runs": "Parties récentes",
+    "offline_notice": "Vous êtes hors ligne. Reconnectez-vous pour voir votre historique.",
+    "missing_player": "Identité du joueur indisponible.",
+    "fetch_error": "Impossible de charger l’historique. Réessayez."
   }
 }

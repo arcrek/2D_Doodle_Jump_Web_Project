@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createBots, createBot, findTargetPlatform, updateBotAI, onBotBounce } from '../game/bots.js';
 
 describe('bots & AI (BOT-01)', () => {
-  it('createBots sao chép đúng dữ liệu và thêm progress = 0', () => {
+  it('createBots sao chép dữ liệu, không tạo điểm cho các thầy', () => {
     const profiles = [
       { id: 'teacher-1', name: 'Ghost 1', base_speed: 44 },
       { id: 'teacher-2', name: 'Ghost 2', base_speed: 48 },
@@ -10,8 +10,8 @@ describe('bots & AI (BOT-01)', () => {
     const bots = createBots(profiles);
 
     expect(bots).toEqual([
-      { id: 'teacher-1', name: 'Ghost 1', base_speed: 44, progress: 0 },
-      { id: 'teacher-2', name: 'Ghost 2', base_speed: 48, progress: 0 },
+      { id: 'teacher-1', name: 'Ghost 1', base_speed: 44 },
+      { id: 'teacher-2', name: 'Ghost 2', base_speed: 48 },
     ]);
 
     // Không mutate dữ liệu truyền vào

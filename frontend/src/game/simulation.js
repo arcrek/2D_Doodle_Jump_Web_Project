@@ -1,9 +1,9 @@
 import { createPlayer, updateHorizontal } from './player.js';
 import { createWorld, updatePlatforms } from './world.js';
 import { applyPhysics, handlePlatformCollisions, handleScreenWrap } from './physics.js';
-import { createRaceBots, updateBotAI, onBotBounce } from './bots.js';
-import { getRanking } from './ranking.js';
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from './index.js';
+import { createRaceBots } from './bots.js';
+import { updateBotCompanion } from './mechanics.js';
+import { SCREEN_HEIGHT, SCREEN_WIDTH, TARGET_HEIGHT } from './index.js';
 
 export function createState(config = {}) {
   const player = {
@@ -28,20 +28,12 @@ export function createState(config = {}) {
 }
 
 export function snapshot(state) {
-  const ranking = getRanking(state.player, state.bots).map((racer) => ({
-    id: racer.id,
-    name: racer.name,
-    progress: Math.floor(racer.progress),
-    finished: racer.finishedAt !== null,
-    isDead: Boolean(racer.isDead),
-    sprite_id: racer.sprite_id,
-  }));
   return {
     height: Math.floor(state.player.progress),
     maxHeight: Math.floor(state.maxHeight),
     elapsedMs: Math.round(state.elapsedMs),
-    ranking,
-    placement: ranking.findIndex((item) => item.id === 'player') + 1,
+    ranking: [],
+    placement: 1,
     reason: state.reason,
     result: state.result,
   };
@@ -51,7 +43,6 @@ export function finish(state, reason) {
   if (state.finished) return;
   state.finished = true;
   state.reason = reason;
-  const ranking = getRanking(state.player, state.bots);
   const isEndless = Boolean(state.config.isEndless || state.config.finish_height == null);
   const finishHeight = state.config.finish_height ?? 3000;
   const height = Math.floor(state.maxHeight || state.player.progress);
@@ -64,7 +55,7 @@ export function finish(state, reason) {
     height,
     elapsed_ms: validElapsed,
     outcome,
-    placement: ranking.findIndex((item) => item.id === 'player') + 1,
+    placement: 1,
   };
 }
 
@@ -74,14 +65,7 @@ export function step(state, dt, direction) {
   const isEndless = Boolean(config.isEndless || config.finish_height == null);
   state.elapsedMs = isEndless ? (state.elapsedMs + dt * 1000) : Math.min(config.max_duration_ms ?? 180000, state.elapsedMs + dt * 1000);
 
-  // Sinh bệ đón đầu theo đối tượng cao nhất (Player hoặc Bot dẫn đầu)
-  let highestEntityY = player.y;
-  for (const bot of bots) {
-    if (!bot.isDead && bot.y < highestEntityY) {
-      highestEntityY = bot.y;
-    }
-  }
-  updatePlatforms(world, dt, highestEntityY);
+  updatePlatforms(world, dt, player.y);
 
   // Cập nhật Player
   updateHorizontal(player, direction, dt);
@@ -96,32 +80,7 @@ export function step(state, dt, direction) {
 
   // Cập nhật 4 Bot với Full Vật Lý & AI (Hướng B)
   for (const bot of bots) {
-    if (bot.finishedAt !== null || bot.isDead) continue;
-
-    // AI chọn bệ & điều hướng ngang
-    updateBotAI(bot, world.platforms, dt, bots, world.cameraY);
-
-    // Trọng lực rơi tự do & cập nhật Y
-    applyPhysics(bot, dt);
-
-    // Xuyên màn hình ngang
-    handleScreenWrap(bot, SCREEN_WIDTH);
-
-    // Xử lý va chạm tiếp đất và nảy
-    handlePlatformCollisions(bot, world.platforms, (b, platform) => {
-      onBotBounce(b, platform);
-    });
-
-    // Cập nhật tiến độ độ cao bot leo được
-    const botProgress = Math.max(0, Math.round(388 - bot.y));
-    bot.progress = isEndless ? Math.max(bot.progress, botProgress) : Math.min(config.finish_height, Math.max(bot.progress, botProgress));
-
-    // Đạt đích hoặc rơi vực
-    if (!isEndless && config.finish_height && bot.progress >= config.finish_height) {
-      bot.finishedAt = state.elapsedMs;
-    } else if (bot.y - world.cameraY > SCREEN_HEIGHT + bot.height + 60) {
-      bot.isDead = true;
-    }
+    updateBotCompanion(bot, world, player, dt, bots);
   }
 
   // Kiểm tra điều kiện kết thúc của Player

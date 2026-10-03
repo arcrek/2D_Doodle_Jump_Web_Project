@@ -1,13 +1,13 @@
 # Doodle Jump USTH
 
-Game đua cao Doodle Jump chạy bằng **ReactJS + Canvas + Python Flask**.
+Game leo cao Doodle Jump với bốn thầy đồng hành, chạy bằng **ReactJS + Canvas + Python Flask**. Chỉ người chơi có điểm và kỷ lục; các thầy không thi đua với người chơi.
 
 Repo chung: [2D_Doodle_Jump_Web_Project](https://github.com/haohan233-tvinh/2D_Doodle_Jump_Web_Project).
 
 ## Bắt đầu ở đâu?
 
 1. Đọc [Hướng dẫn bắt đầu](docs/START_HERE.md).
-2. Bấm “Bắt đầu chơi” ở màn tiêu đề; camera trượt xuống sân chơi. Chọn nickname và một trong năm skin rồi đua với bốn bot.
+2. Bấm “Bắt đầu chơi” ở màn tiêu đề để camera trượt xuống, nhập nickname trong menu rồi bắt đầu lượt chơi. Skin được giữ theo hồ sơ người chơi.
 3. Dùng phím mũi tên hoặc A/D để điều khiển; trên màn hình cảm ứng dùng hai nút ở cạnh dưới.
 
 ## Chạy trên Windows
@@ -30,14 +30,14 @@ Frontend tự cập nhật khi lưu file; sau khi sửa Python, dừng dev rồi
 | Phần | Trạng thái |
 |---|---|
 | Di chuyển, tự nhảy, va chạm bệ và camera cuộn | Hoạt động |
-| Bốn bot dùng ảnh nhân vật và bảng xếp hạng trực tiếp | Hoạt động |
-| Chọn nickname, skin, tạm dừng và chơi lại | Hoạt động |
+| Bốn thầy chọn bệ riêng khi có lựa chọn phù hợp, bất tử, nhảy bắt kịp và chờ camera | Hoạt động |
+| Nhập nickname, giữ skin theo hồ sơ, tạm dừng và chơi lại | Hoạt động |
 | Chuyển cảnh tiêu đề, nhịp bật xuất phát, màn che khi chơi lại và về menu | Hoạt động |
 | Khung 16:9 tràn viền trên màn 16:9, giữ trọn khung trên màn khác tỷ lệ | Hoạt động |
 | Lưu kết quả, lịch sử cá nhân và bảng xếp hạng SQLite | Hoạt động |
 | API cấu hình luật, skin và bot | Hoạt động |
 
-Luật, skin và bot lấy từ `GET /api/config`. Sau mỗi lượt, frontend gửi kết quả tới `POST /api/runs`; menu có thể mở lịch sử cá nhân và bảng xếp hạng. Khi API chưa sẵn sàng, game vẫn chơi được nhưng không lưu lượt.
+Luật, skin và bot lấy từ `GET /api/config`. Sau mỗi lượt, frontend gửi kết quả người chơi tới `POST /api/runs`; menu có thể mở lịch sử cá nhân và bảng xếp hạng giữa những người chơi. Khi API chưa sẵn sàng, game vẫn chơi được nhưng không lưu lượt.
 
 ## Các thư mục
 

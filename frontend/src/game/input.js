@@ -76,6 +76,7 @@ export function createInput(target = (typeof window !== 'undefined' ? window : n
 
   return {
     state,
+    reset: onBlur,
     destroy,
   };
 }

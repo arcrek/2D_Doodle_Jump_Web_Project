@@ -73,11 +73,11 @@ describe('Mechanics: Rising Lava', () => {
     expect(player.vy).toBe(SHIELD_LAVA_REBOUND_VELOCITY); // Bật nảy
   });
 
-  it('Dung nham tiêu diệt bot khi chạm phải', () => {
+  it('Dung nham không tiêu diệt thầy khi chạm phải', () => {
     const lava = { y: 400, speed: 40, elapsed: 0 };
     const bot = { y: 380, height: 44, isDead: false };
     updateLava({ lava, dt: 0.1, world: { platforms: [] }, player: { y: 0, height: 42 }, bots: [bot] });
-    expect(bot.isDead).toBe(true);
+    expect(bot.isDead).toBe(false);
   });
 
   it('Bot rơi xuống sâu nhưng chưa chạm Dung nham thì không bị tiêu diệt (chỉ chết khi chạm Lava)', () => {

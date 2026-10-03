@@ -16,7 +16,7 @@
     "player_name_placeholder": "Nhập tên của bạn...",
     "name_required": "Vui lòng nhập tên người chơi (1–24 ký tự).",
     "name_max_length": "Tên người chơi tối đa 24 ký tự.",
-    "controls_title": "🎮 Cách điều khiển:",
+    "controls_title": "Cách điều khiển:",
     "controls_hint": "A / D hoặc ← / → để di chuyển",
     "start_button": "▶ BẮT ĐẦU CHƠI",
     "leaderboard_button": "Bảng xếp hạng ↗",
@@ -52,7 +52,7 @@
     "phase_finished": "Kết thúc",
     "btn_resume": "▶ Tiếp tục (ESC)",
     "btn_pause": "⏸ Tạm dừng (ESC)",
-    "btn_restart": "🔄 Chơi lại (Restart)",
+    "btn_restart": "Chơi lại (Restart)",
     "aria_hud": "Bảng thông số trò chơi",
     "aria_pause_resume": "Tạm dừng hoặc Tiếp tục",
     "aria_restart": "Chơi lại từ đầu",
@@ -60,9 +60,9 @@
     "aria_ranking": "Bảng đua top"
   },
   "game_over": {
-    "pause_title": "⏸ Trò Chơi Tạm Dừng",
+    "pause_title": "Trò Chơi Tạm Dừng",
     "holding_position": "Đang giữ vị trí của {name}",
-    "finish_win_title": "🏁 Về đích!",
+    "finish_win_title": "Về đích!",
     "finish_over_title": "Kết thúc lượt chơi",
     "congrats": "Chúc mừng bạn đã chạm đích!",
     "lava_death": "Bạn đã bị dung nham nuốt chửng!",
@@ -95,7 +95,8 @@
     "default_player_name": "Bạn",
     "press_key_start": "Bấm phím để xuất phát!",
     "usth_edition": "★ USTH MULTIPLAYER EDITION ★",
-    "start_btn_canvas": "▶ BẮT ĐẦU CHƠI"
+    "start_btn_canvas": "▶ BẮT ĐẦU CHƠI",
+    "new_page": "MỘT TRANG MỚI"
   },
   "save": {
     "saving": "Đang lưu kết quả…",
@@ -111,5 +112,23 @@
     "lang_en": "Tiếng Anh",
     "lang_vi": "Tiếng Việt",
     "lang_fr": "Tiếng Pháp"
+  },
+  "history": {
+    "eyebrow": "NHẬT KÝ NHỮNG CÚ NHẢY",
+    "title": "Lịch sử của tôi",
+    "subtitle": "10 lượt gần nhất · Mới nhất ở trên",
+    "loading": "Đang mở sổ…",
+    "retry": "Thử lại",
+    "empty": "Chưa có lượt chơi nào.",
+    "empty_hint": "Hoàn thành một lượt để ghi vào sổ nhé.",
+    "col_run": "Lượt",
+    "col_name": "Tên",
+    "col_height": "Độ cao",
+    "col_time": "Thời gian",
+    "close": "Đóng sổ",
+    "aria_runs": "Các lượt chơi gần đây",
+    "offline_notice": "Đang ngoại tuyến. Kết nối lại để xem lịch sử.",
+    "missing_player": "Chưa tìm thấy thông tin người chơi.",
+    "fetch_error": "Chưa tải được lịch sử. Bạn thử lại nhé."
   }
 }
