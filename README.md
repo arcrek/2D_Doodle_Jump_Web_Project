@@ -1,15 +1,14 @@
 # Doodle Jump USTH
 
-Bộ khung **V0.0** cho nhóm bắt đầu làm game web bằng **ReactJS + Canvas + Python Flask**.
+Game đua cao Doodle Jump chạy bằng **ReactJS + Canvas + Python Flask**.
 
 Repo chung: [2D_Doodle_Jump_Web_Project](https://github.com/haohan233-tvinh/2D_Doodle_Jump_Web_Project).
 
 ## Bắt đầu ở đâu?
 
 1. Đọc [Hướng dẫn bắt đầu](docs/START_HERE.md).
-2. Chạy dự án và thấy nhân vật màu vàng đứng trên bệ.
-3. Mở [Việc đầu tiên của từng người](docs/FIRST_TASKS.md), tìm tên mình.
-4. Chỉ làm nhiệm vụ đầu tiên, chưa làm hết tính năng trong kế hoạch.
+2. Bấm “Bắt đầu chơi” ở màn tiêu đề; camera trượt xuống sân chơi. Chọn nickname và một trong năm skin rồi đua với bốn bot.
+3. Dùng phím mũi tên hoặc A/D để điều khiển; trên màn hình cảm ứng dùng hai nút ở cạnh dưới.
 
 ## Chạy trên Windows
 
@@ -26,17 +25,19 @@ Mở **http://localhost:5173**. Giữ terminal đang chạy. Nhấn **Ctrl+C** �
 Lần sau chỉ cần `npm.cmd run dev`. Sau khi đồng đội đổi thư viện, chạy lại setup.
 Frontend tự cập nhật khi lưu file; sau khi sửa Python, dừng dev rồi chạy lại.
 
-## Bộ khung có gì?
+## Tính năng hiện có
 
-| Đã chạy được | Nhóm sẽ triển khai |
+| Phần | Trạng thái |
 |---|---|
-| Một màn hình game React + Canvas | Di chuyển, nhảy, va chạm, camera |
-| Flask `/api/health` và `/api/config` | Mô phỏng 4 ghost bot và xếp hạng |
-| Proxy Vite nối frontend với backend | Form nickname/skin và vòng đời lượt |
-| Schema SQLite, init không xóa dữ liệu | Lưu kết quả, lịch sử, bảng xếp hạng |
-| Test khung và hướng dẫn từng người | Bộ test gameplay và nghiệp vụ |
+| Di chuyển, tự nhảy, va chạm bệ và camera cuộn | Hoạt động |
+| Bốn bot dùng ảnh nhân vật và bảng xếp hạng trực tiếp | Hoạt động |
+| Chọn nickname, skin, tạm dừng và chơi lại | Hoạt động |
+| Chuyển cảnh tiêu đề, nhịp bật xuất phát, màn che khi chơi lại và về menu | Hoạt động |
+| Khung 16:9 tràn viền trên màn 16:9, giữ trọn khung trên màn khác tỷ lệ | Hoạt động |
+| Lưu kết quả, lịch sử cá nhân và bảng xếp hạng SQLite | Hoạt động |
+| API cấu hình luật, skin và bot | Hoạt động |
 
-Canvas hiện là **hình tĩnh**, chưa phải game chơi được. API kết quả trả **501 chưa triển khai**, không giả báo đã lưu.
+Luật, skin và bot lấy từ `GET /api/config`. Sau mỗi lượt, frontend gửi kết quả tới `POST /api/runs`; menu có thể mở lịch sử cá nhân và bảng xếp hạng. Khi API chưa sẵn sàng, game vẫn chơi được nhưng không lưu lượt.
 
 ## Các thư mục
 

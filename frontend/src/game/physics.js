@@ -1,30 +1,55 @@
-// PHYS-01 · Hoàng Hải Minh
-// Cần export applyPhysics(player, dt): lưu prevY, cập nhật vy rồi y.
-// Đơn vị giây, pixel và pixel/giây. Chưa viết collision trong PR đầu.
+// Canvas coordinates: positive Y points down. Horizontal movement belongs to FE-01.
+import { isLandingOnPlatform, checkAABB } from './collision.js';
 
-// physics
-let velocityy = 0;
-let initialvelocityy = -8; // initial jump velocity
-let gravity = 0.4;
+export const GRAVITY = 1200;
+export const MAX_VY = 900;
+export const JUMP_VELOCITY = -520;
 
-function applyPhysics(player, dt) {
-    player.y += velocityy;
-    velocityy += gravity;
+export const Kinematics = {
+  velocityAt: (v0, g, t) => v0 + g * t,
+  positionAt: (y0, v0, g, t) => y0 + v0 * t + 0.5 * g * t * t,
+  peakTime: (v0, g) => Math.abs(v0) / g,
+  maxHeight: (v0, g) => (v0 * v0) / (2 * g),
+  airTime: (v0, g) => (2 * Math.abs(v0)) / g,
+};
 
-    for (let i = 0; i < platformArray.length; i++) {
-        let platform = platformArray[i];
-        if (velocityy < 0 && player.y < boardheight*3/5) {
-            platform.y -= initialvelocityy;
-        }
-        if (detectCollision(player, platform) && velocityy >= 0) {
-            velocityy = initialvelocityy;
-        }
-    }
+export function applyPhysics(player, dt) {
+  player.prevY = player.y;
+  player.vy = Math.min(MAX_VY, player.vy + GRAVITY * dt);
+  player.y += player.vy * dt;
 }
 
-function detectCollision(a,b) { // Detection formula : Detecting intersection between two rectangles a and b
-    return a.x < b.x + b.width && //a's top left corner doesn't reach b's top right corner
-           a.x + a.width > b.x && //a's top right corner passes b's top left corner
-           a.y < b.y + b.height && //a's top left corner doesn't reach b's bottom left corner
-           a.y + a.height > b.y; // a's bottom left corner passes b's top left corner
+export function handlePlatformCollisions(player, platforms, onBounce = null) {
+  // Khi rơi qua nhiều bệ trong một frame, chạm bệ cao nhất trước (tọa độ y nhỏ nhất).
+  let landing = null;
+  for (const platform of platforms) {
+    if (platform.broken || !isLandingOnPlatform(player, platform)) continue;
+    if (!landing || platform.y < landing.y) landing = platform;
+  }
+  if (!landing) return null;
+
+  const bounceMultiplier = landing.type === 'bouncy'
+    ? (landing.bounceMultiplier || 1.45)
+    : 1;
+  player.y = landing.y - player.height;
+  player.vy = JUMP_VELOCITY * bounceMultiplier;
+
+  if (landing.type === 'fragile' || landing.type === 'breakable') {
+    landing.broken = true;
+  }
+
+  if (typeof onBounce === 'function') {
+    onBounce(player, landing);
+  }
+
+  return landing;
+}
+
+export function handleScreenWrap(player, width) {
+  if (player.x > width) player.x = -player.width;
+  else if (player.x + player.width < 0) player.x = width;
+}
+
+export function detectCollision(rectA, rectB) {
+  return checkAABB(rectA, rectB);
 }

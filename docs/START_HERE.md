@@ -43,7 +43,7 @@ Mở **http://localhost:5173**. Đạt khi:
 - Mở thẳng màn hình “Doodle Jump”, thấy nhân vật màu vàng trên bệ.
 - Canvas xuất hiện nghĩa là đã tải được cấu hình từ Flask.
 
-Đây là hình tĩnh; chưa điều khiển được là đúng ở V0.0. Không đóng terminal khi đang xem.
+Chọn nickname và skin rồi bấm bắt đầu. Điều khiển bằng A/D hoặc phím mũi tên; trên thiết bị cảm ứng dùng hai nút ở cạnh dưới. Không đóng terminal khi đang xem.
 
 ## 4. Thử sửa một dòng để hiểu luồng
 

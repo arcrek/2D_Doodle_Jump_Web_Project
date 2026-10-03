@@ -23,11 +23,11 @@ def test_missing_routes_and_wrong_methods_are_json():
     assert "GET" in wrong.headers["Allow"]
 
 
-def test_unimplemented_write_never_claims_saved():
+def test_invalid_write_never_claims_saved():
     client = create_app({"TESTING": True}).test_client()
     response = client.post("/api/runs", json={"height": 100})
-    assert response.status_code == 501
-    assert response.json["error"]["code"] == "not_implemented"
+    assert response.status_code == 422
+    assert response.json["error"]["code"] == "invalid_run"
 
 
 def test_init_does_not_drop_existing_rows(tmp_path):
