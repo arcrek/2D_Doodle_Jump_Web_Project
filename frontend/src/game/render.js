@@ -25,9 +25,9 @@ import {
   drawDoodleWipe
 } from './doodle-art.js';
 import { BOT_COLORS } from './index.js';
-import { SKIN_PATHS, BOT_PATHS, drawSprite, platformSprite } from './sprites.js';
+import { SKIN_PATHS, BOT_PATHS, TITLE_LOGO_PATH, isSpriteReady, drawSprite, platformSprite } from './sprites.js';
 import { getEntranceJumpPosition } from './player.js';
-import { renderLava, renderPowerups } from './mechanics.js';
+import { renderLava, renderLavaDanger, renderPowerups } from './mechanics.js';
 import { getLocale } from '../i18n/index.js';
 
 const introArtwork = new WeakMap();
@@ -38,15 +38,17 @@ function paintIntroArtwork(ctx, width, centerY, drawingTime, hovered, sliding, b
   let cached = introArtwork.get(ctx.canvas);
   const drawing = Math.floor(drawingTime * 7.5);
   const currentLocale = getLocale();
-  if (!cached || cached.width !== width || (!sliding && (cached.drawing !== drawing || cached.hovered !== hovered || cached.locale !== currentLocale))) {
-    const canvas = document.createElement('canvas');
+  const logoReady = isSpriteReady(TITLE_LOGO_PATH);
+  if (!cached || cached.width !== width || cached.logoReady !== logoReady || (!sliding && (cached.drawing !== drawing || cached.hovered !== hovered || cached.locale !== currentLocale))) {
+    const canvas = cached?.canvas ?? document.createElement('canvas');
     canvas.width = width;
     canvas.height = 280;
     const ink = canvas.getContext('2d');
     if (!ink) return;
+    ink.clearRect(0, 0, width, 280);
     drawDoodleTitle(ink, width / 2, 120, drawingTime);
     drawDoodleStartButton(ink, { x: width / 2 - 110, y: 190, width: 220, height: 50 }, hovered, drawingTime);
-    cached = { canvas, width, drawing, hovered, locale: currentLocale };
+    cached = { canvas, width, drawing, hovered, logoReady, locale: currentLocale };
     introArtwork.set(ctx.canvas, cached);
   }
   ctx.save();
@@ -65,7 +67,7 @@ export function render(ctx, state) {
   const { width, height } = ctx.canvas;
   const cameraY = world.cameraY || 0;
   const timeSec = phase === 'returning_title' ? (ui.returnDrawingTime ?? 0) : performance.now() / 1000;
-  const drawingTime = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : timeSec;
+  const drawingTime = ui.reduceMotion || typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : timeSec;
   const blurPx = phase === 'intro_sliding' ? Math.max(0, ui.motionBlurPx || 0) : 0;
 
   // Xóa sạch toàn bộ khung hình cũ trước khi vẽ khung hình mới
@@ -120,6 +122,9 @@ export function render(ctx, state) {
   // 2. VẼ DANH SÁCH BỆ ĐỠ (PLATFORMS)
   // ===========================================================================
   // Ở màn hình mở đầu 'intro_title' hoặc lúc đang trượt 'intro_sliding', ẩn toàn bộ bệ
+  const showLava = ['running', 'paused', 'finished', 'wipe_reset', 'warmup_hop', 'returning_title'].includes(phase);
+  if (!isMock && showLava && world?.lava) renderLavaDanger(ctx, world.lava, cameraY, width, height, drawingTime);
+  const showPickups = ['intro_reveal', 'intro_wait_input', 'running', 'paused', 'finished', 'warmup_hop', 'wipe_reset'].includes(phase);
   const hiddenPlatforms = ['intro_title', 'intro_sliding', 'intro_menu_delay'].includes(phase);
   // Ở giai đoạn xuất hiện bệ, bệ sẽ hiện dần dần theo độ mờ alpha
   const limitedPlatforms = ['intro_platform', 'ready', 'intro_player', 'intro_reveal'].includes(phase);
@@ -162,6 +167,7 @@ export function render(ctx, state) {
 
     if (!isMock) {
       drawDoodlePlatform(ctx, platform, py, drawingTime, index);
+      if (showPickups && platform.powerup) renderPowerups(ctx, [platform], null, cameraY, drawingTime);
     } else {
       ctx.fillRect(platform.x, py, platform.width, platform.height);
     }
@@ -230,13 +236,8 @@ export function render(ctx, state) {
   // 4.5. HIỆU ỨNG VẬT PHẨM (POWERUPS) & DUNG NHAM (LAVA)
   // ===========================================================================
   if (!isMock) {
-    const isGameplayPhase = ['running', 'paused', 'finished', 'warmup_hop', 'wipe_reset'].includes(phase);
-    if (isGameplayPhase) {
-      renderPowerups(ctx, world?.platforms, displayPlayer, cameraY, timeSec);
-    }
-    if (world?.lava && isGameplayPhase) {
-      renderLava(ctx, world.lava, cameraY, width, height, timeSec, showPlayer ? displayPlayer : null);
-    }
+    if (showPlayer && showPickups) renderPowerups(ctx, null, displayPlayer, cameraY, drawingTime);
+    if (showLava && world?.lava) renderLava(ctx, world.lava, cameraY, width, height, drawingTime);
   }
 
   // ===========================================================================

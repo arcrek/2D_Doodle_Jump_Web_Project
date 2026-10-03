@@ -24,8 +24,7 @@ import {
 } from './index.js';
 import { onBotBounce } from './bots.js';
 import { isLandingOnPlatform } from './collision.js';
-import { drawSprite, POWERUP_PATHS } from './sprites.js';
-import { t } from '../i18n/index.js';
+import { drawSprite, POWERUP_PATHS, POWERUP_EFFECT_PATHS, LAVA_PATH, LAVA_FLAME_PATH } from './sprites.js';
 
 // =============================================================================
 // 1. CƠ CHẾ DUNG NHAM DÂNG (RISING LAVA)
@@ -247,89 +246,181 @@ export function updatePowerups({ player, platforms, dt, soundManager }) {
 // =============================================================================
 // 4. RENDER ĐỒ HỌA DUNG NHAM & HIỆU ỨNG POWERUPS
 // =============================================================================
-export function renderLava(ctx, lava, cameraY, width, height, time = 0, player = null) {
-  if (!lava) return;
-  const screenLavaY = lava.y - cameraY;
+const LAVA_SOURCE_RECT = [176, 210, 912, 510];
+const LAVA_TILE_WIDTH = 640;
+const LAVA_TILE_HEIGHT = LAVA_TILE_WIDTH * LAVA_SOURCE_RECT[3] / LAVA_SOURCE_RECT[2];
+const LAVA_WAVE_ENVELOPE = 33; // 20px rolling wave + 7px ripple + 6px bob.
 
-  // 1. Cảnh báo khoảng cách Dung nham (Lava Distance Warning)
-  if (player) {
-    const playerBottom = player.y + player.height;
-    const lavaDistance = Math.max(0, Math.round(lava.y - playerBottom));
+function lavaSurfaceY(surfaceY, x, time) {
+  const phase = time * Math.PI / 2;
+  const shift = Math.sin(phase) * 28;
+  return surfaceY + Math.sin(phase * 2) * 6
+    + Math.sin((x - shift) / 76 - phase) * 20
+    + Math.sin((x + shift) / 39 + phase * 2) * 7;
+}
 
-    // Hiển thị huy hiệu cảnh báo khi dung nham cách dưới 250m
-    if (lavaDistance < 250) {
-      ctx.save();
-      const isCritical = lavaDistance < 100;
-      const pulse = Math.sin(time * 8) * (isCritical ? 2.5 : 1.2);
-      ctx.font = 'bold 12px sans-serif';
-      const warningText = isCritical
-        ? t('game.lava_warning_critical', { distance: lavaDistance })
-        : t('game.lava_warning_notice', { distance: lavaDistance });
-      const textW = typeof ctx.measureText === 'function' ? ctx.measureText(warningText)?.width || 0 : 0;
-      const badgeW = Math.max(210, textW + 24);
-      const badgeH = 30;
-      const badgeX = (width - badgeW) / 2;
-      const badgeY = Math.min(height - 42, Math.max(20, screenLavaY - 42)) + pulse;
-
-      ctx.fillStyle = isCritical ? 'rgba(220, 38, 38, 0.92)' : 'rgba(234, 88, 12, 0.88)';
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-
-      ctx.beginPath();
-      if (typeof ctx.roundRect === 'function') {
-        ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
-      } else {
-        ctx.rect(badgeX, badgeY, badgeW, badgeH);
-      }
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(warningText, width / 2, badgeY + badgeH / 2);
-      ctx.restore();
-    }
-  }
-
-  if (screenLavaY > height + 40) return;
+function drawLavaArtwork(ctx, surfaceY, width, height, time) {
+  if (typeof ctx.drawImage !== 'function' || typeof ctx.clip !== 'function') return false;
+  const shift = Math.sin(time * Math.PI / 2) * 28; // One gentle left/right cycle every 4s.
+  const bob = Math.sin(time * Math.PI) * 6;
+  const top = surfaceY + bob - 29; // Cover every crest, including while bobbing.
+  const firstRow = Math.max(0, Math.floor(-top / LAVA_TILE_HEIGHT));
+  const lastRow = Math.ceil((height - top) / LAVA_TILE_HEIGHT);
+  const lastColumn = Math.ceil((width - shift) / LAVA_TILE_WIDTH);
+  let ready = false;
 
   ctx.save();
-  const grad = ctx.createLinearGradient(0, screenLavaY, 0, screenLavaY + 200);
-  grad.addColorStop(0, '#ff471a');
-  grad.addColorStop(0.35, '#e62e00');
-  grad.addColorStop(1, '#990000');
-  ctx.fillStyle = grad;
-
   ctx.beginPath();
   ctx.moveTo(0, height);
-  ctx.lineTo(0, screenLavaY);
-
-  const waveLength = 48;
-  const waveAmp = 5;
-  for (let x = 0; x <= width; x += 12) {
-    const yWave = Math.sin((x / waveLength) + time * 4.5) * waveAmp;
-    ctx.lineTo(x, screenLavaY + yWave);
+  ctx.lineTo(0, lavaSurfaceY(surfaceY, 0, time));
+  for (let x = 8; x < width; x += 8) {
+    ctx.lineTo(x, lavaSurfaceY(surfaceY, x, time));
   }
-
+  ctx.lineTo(width, lavaSurfaceY(surfaceY, width, time));
   ctx.lineTo(width, height);
   ctx.closePath();
-  ctx.fill();
+  ctx.clip();
 
-  ctx.strokeStyle = '#ffcc00';
-  ctx.lineWidth = 3.5;
+  // Extra tiles stay outside both screen edges throughout the sway. Mirroring
+  // makes adjoining edges share the same pixels without a paper gap.
+  for (let row = firstRow; row < lastRow; row += 1) {
+    for (let column = -1; column < lastColumn; column += 1) {
+      const flipX = Math.abs(column % 2) === 1;
+      const flipY = row % 2 === 1;
+      const x = column * LAVA_TILE_WIDTH + shift;
+      const y = top + row * LAVA_TILE_HEIGHT;
+      ctx.save();
+      ctx.translate(x + (flipX ? LAVA_TILE_WIDTH : 0), y + (flipY ? LAVA_TILE_HEIGHT : 0));
+      ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+      ready = drawSprite(ctx, LAVA_PATH, 0, 0, LAVA_TILE_WIDTH, LAVA_TILE_HEIGHT, LAVA_SOURCE_RECT);
+      ctx.restore();
+      if (!ready) break;
+    }
+    if (!ready) break;
+  }
+  ctx.restore();
+  return ready;
+}
+
+// A paper warning belongs to the scene, behind platforms and characters.
+// Its position follows the lava directly; never clamp it to the HUD.
+export function renderLavaDanger(ctx, lava, cameraY, width, height, time = 0) {
+  if (!lava) return;
+  const y = lava.y - cameraY - 88;
+  if (y > height + 45 || y < -65) return;
+  const drawing = Math.floor(time * 7.5);
+  const tilt = Math.sin(drawing * .19) * 1.2;
+  ctx.save();
+  ctx.globalAlpha *= .64;
+  ctx.fillStyle = '#eed399';
+  ctx.strokeStyle = '#9d7750';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = -20; x <= width + 30; x += 16) {
+    const edgeY = y + Math.sin(x * .16) * 1.5 + tilt * x / width;
+    if (x === -20) ctx.moveTo(x, edgeY); else ctx.lineTo(x, edgeY);
+  }
+  for (let x = width + 30; x >= -20; x -= 16) ctx.lineTo(x, y + 39 + Math.sin(x * .21) * 1.5 + tilt * x / width);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
+  ctx.fillStyle = '#923d2c';
+  ctx.font = '24px "Doodle Hand", "Comic Sans MS", cursive';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let x = 64; x < width + 100; x += 142) {
+    ctx.fillText('DANGER', x, y + 20 + tilt * x / width);
+    ctx.beginPath();
+    ctx.moveTo(x + 59, y + 11); ctx.lineTo(x + 51, y + 29);
+    ctx.moveTo(x + 66, y + 11); ctx.lineTo(x + 58, y + 29);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
+const FLAME_FRAMES = [[140, 48, 670, 800], [977, 48, 670, 800]];
+
+function drawLavaEmbers(ctx, surfaceY, width, height, time) {
+  const drawing = Math.floor(time * 7.5);
+  const count = Math.min(16, Math.ceil(width / 86));
+  for (let i = 0; i < count; i += 1) {
+    const cycle = (time * (.27 + (i % 3) * .035) + i * .618) % 1;
+    const x = (i + .5) * width / count + Math.sin(time * 1.3 + i * 2.4) * 13;
+    const baseY = lavaSurfaceY(surfaceY, x, time);
+    const size = 25 + (i % 4) * 6;
+    const flameY = baseY + 9 - size - cycle * 16;
+    if (flameY > height + 40 || flameY + size < -10) continue;
+    ctx.save();
+    ctx.globalAlpha *= .58 + Math.sin(cycle * Math.PI) * .38;
+    const frame = FLAME_FRAMES[(drawing + i) % 2];
+    const flameWidth = size * frame[2] / frame[3];
+    if (!drawSprite(ctx, LAVA_FLAME_PATH, x - flameWidth / 2, flameY, flameWidth, size, frame)) {
+      ctx.fillStyle = '#ee8e19';
+      ctx.beginPath();
+      ctx.moveTo(x, flameY); ctx.lineTo(x + size * .24, flameY + size * .7);
+      ctx.lineTo(x, flameY + size); ctx.lineTo(x - size * .23, flameY + size * .72);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // Analytic lifetimes keep particles bounded: no list growth or reset debris.
+  for (let i = 0; i < count * 2; i += 1) {
+    const age = (time * (.22 + (i % 5) * .02) + i * .381966) % 1;
+    const x = ((i * 137.5 + Math.sin(time + i) * 19) % width + width) % width;
+    const y = lavaSurfaceY(surfaceY, x, time) - 8 - age * 125;
+    if (y < -8 || y > height + 8) continue;
+    ctx.save();
+    ctx.globalAlpha *= (1 - age) * .75;
+    ctx.strokeStyle = i % 2 ? '#cc622d' : '#eca928';
+    ctx.lineWidth = 1.5 + (i % 3) * .45;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 2 + (i % 2), y - 4 - (i % 3)); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+export function renderLava(ctx, lava, cameraY, width, height, time = 0) {
+  if (!lava) return;
+  const screenLavaY = lava.y - cameraY;
+  if (screenLavaY > height + 145) return;
+
+  if (screenLavaY <= height + LAVA_WAVE_ENVELOPE + 2 && !drawLavaArtwork(ctx, screenLavaY, width, height, time)) {
+    ctx.save();
+    const grad = ctx.createLinearGradient(0, screenLavaY, 0, screenLavaY + 200);
+    grad.addColorStop(0, '#ff471a');
+    grad.addColorStop(0.35, '#e62e00');
+    grad.addColorStop(1, '#990000');
+    ctx.fillStyle = grad;
+
+    ctx.beginPath();
+    ctx.moveTo(0, height);
+    ctx.lineTo(0, lavaSurfaceY(screenLavaY, 0, time));
+    for (let x = 8; x < width; x += 8) {
+      ctx.lineTo(x, lavaSurfaceY(screenLavaY, x, time));
+    }
+    ctx.lineTo(width, lavaSurfaceY(screenLavaY, width, time));
+    ctx.lineTo(width, height);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+  drawLavaEmbers(ctx, screenLavaY, width, height, time);
+}
+
 export function renderPowerups(ctx, platforms, player, cameraY, time = 0) {
+  // Hold each pencil pose for 1/7.5s. A frozen drawing time also freezes effects.
+  const drawing = Math.floor(time * 7.5);
+  const heldTime = drawing / 7.5;
   // 1. Vật phẩm trên bệ
   if (Array.isArray(platforms)) {
     for (const p of platforms) {
       if (!p.powerup || p.broken) continue;
       const itemX = p.x + p.width / 2;
       const itemY = p.y - 14 - cameraY;
-      const floatOffset = Math.sin(time * 5 + p.x) * 3;
+      const floatOffset = Math.sin(heldTime * 5 + p.x) * 2;
 
       ctx.save();
       ctx.translate(itemX, itemY + floatOffset);
@@ -342,7 +433,8 @@ export function renderPowerups(ctx, platforms, player, cameraY, time = 0) {
         -cfg.width / 2,
         -cfg.height / 2,
         cfg.width,
-        cfg.height
+        cfg.height,
+        cfg.sourceRect
       );
 
       // Nếu ảnh chưa sẵn sàng hoặc không tải được -> dùng vector doodle fallback
@@ -372,13 +464,18 @@ export function renderPowerups(ctx, platforms, player, cameraY, time = 0) {
     ctx.save();
     const feetX = player.x + player.width / 2;
     const feetY = player.y + player.height - cameraY;
-    ctx.fillStyle = Math.random() < 0.5 ? '#ff9900' : '#ff3300';
-    ctx.beginPath();
-    ctx.moveTo(feetX - 8, feetY);
-    ctx.lineTo(feetX + 8, feetY);
-    ctx.lineTo(feetX, feetY + 22 + Math.random() * 8);
-    ctx.closePath();
-    ctx.fill();
+    const pose = drawing % 4;
+    const flameHeight = [39, 34, 43, 37][pose];
+    const flameWidth = [29, 32, 27, 31][pose];
+    ctx.translate(feetX + [0, -1, 1, 0][pose], feetY - 3);
+    if (!drawSprite(ctx, POWERUP_EFFECT_PATHS.rocket, -flameWidth / 2, 0, flameWidth, flameHeight, [100, 210, 1060, 1030])) {
+      ctx.fillStyle = '#f5a12a';
+      ctx.beginPath();
+      ctx.moveTo(-9, 0); ctx.lineTo(-12, 15); ctx.lineTo(-5, 12);
+      ctx.lineTo(0, flameHeight); ctx.lineTo(8, 14); ctx.lineTo(11, 17); ctx.lineTo(8, 0);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#b65d26'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -387,14 +484,24 @@ export function renderPowerups(ctx, platforms, player, cameraY, time = 0) {
     ctx.save();
     const centerX = player.x + player.width / 2;
     const centerY = player.y + player.height / 2 - cameraY;
-    const pulse = Math.sin(time * 6) * 2;
-    ctx.strokeStyle = 'rgba(52, 152, 219, 0.85)';
-    ctx.fillStyle = 'rgba(52, 152, 219, 0.18)';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, player.height * 0.72 + pulse, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    const diameter = player.height * 2.25 + [0, 2, -1, 1][drawing % 4];
+    ctx.translate(centerX, centerY);
+    ctx.rotate([-.025, .018, -.012, .025][drawing % 4]);
+    ctx.globalAlpha *= player.powerup.shieldTimer < .8 && drawing % 2 ? .45 : .9;
+    if (!drawSprite(ctx, POWERUP_EFFECT_PATHS.shield, -diameter / 2, -diameter / 2, diameter, diameter, [48, 42, 1170, 1170])) {
+      ctx.strokeStyle = '#66cbd4';
+      ctx.lineWidth = 2;
+      for (let ring = 0; ring < 2; ring++) {
+        ctx.beginPath();
+        for (let step = 0; step <= 48; step++) {
+          const angle = step * Math.PI / 24;
+          const radius = diameter * .43 + ring * 3 + Math.sin(angle * 5 + drawing) * 1.1;
+          const x = Math.cos(angle) * radius, y = Math.sin(angle) * radius;
+          if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
     ctx.restore();
   }
 }

@@ -1,4 +1,9 @@
+
 const sprites = new Map();
+
+export const LAVA_PATH = '/Lava.jpg';
+export const TITLE_LOGO_PATH = '/images/doodle-jump-logo.png';
+export const LAVA_FLAME_PATH = '/images/lava-flames.png';
 
 export const SKIN_PATHS = {
   doodle: '/images/skins/doodle.svg',
@@ -22,9 +27,33 @@ const PLATFORM_PATHS = {
 };
 
 export const POWERUP_PATHS = {
-  rocket: '/images/powerups/rocket.svg',
-  shield: '/images/powerups/shield.svg',
+  rocket: '/images/powerups/rocket.png',
+  shield: '/images/powerups/shield.png',
 };
+
+export const POWERUP_EFFECT_PATHS = {
+  shield: '/images/powerups/shield-aura.png',
+  rocket: '/images/powerups/jet-flame.png',
+};
+
+function loadSprite(path) {
+  if (sprites.has(path)) return sprites.get(path);
+  if (typeof Image === 'undefined') return undefined;
+  const image = new Image();
+  image.decoding = 'async';
+  const sprite = { image, ready: false, failed: false };
+  sprites.set(path, sprite);
+  image.onload = () => {
+    sprite.ready = true;
+    image.onload = image.onerror = null;
+  };
+  image.onerror = () => {
+    sprite.failed = true;
+    image.onload = image.onerror = null;
+  };
+  image.src = path;
+  return sprite;
+}
 
 export function preloadSprites() {
   if (typeof Image === 'undefined') return;
@@ -33,28 +62,22 @@ export function preloadSprites() {
     ...Object.values(BOT_PATHS),
     ...Object.values(PLATFORM_PATHS),
     ...Object.values(POWERUP_PATHS),
+    ...Object.values(POWERUP_EFFECT_PATHS),
+    LAVA_PATH,
+    TITLE_LOGO_PATH,
+    LAVA_FLAME_PATH,
   ]) {
-    if (sprites.has(path)) continue;
-    const image = new Image();
-    const sprite = { image, ready: false, failed: false };
-    sprites.set(path, sprite);
-    image.onload = () => { sprite.ready = true; };
-    image.onerror = () => { sprite.failed = true; };
-    image.src = path;
+    loadSprite(path);
   }
+}
+
+export function isSpriteReady(path) {
+  return Boolean(loadSprite(path)?.ready);
 }
 
 export function drawSprite(ctx, path, x, y, width, height, sourceRect) {
   if (!path) return false;
-  if (!sprites.has(path) && typeof Image !== 'undefined') {
-    const image = new Image();
-    const sprite = { image, ready: false, failed: false };
-    sprites.set(path, sprite);
-    image.onload = () => { sprite.ready = true; };
-    image.onerror = () => { sprite.failed = true; };
-    image.src = path;
-  }
-  const sprite = sprites.get(path);
+  const sprite = loadSprite(path);
   if (!sprite?.ready || typeof ctx.drawImage !== 'function') return false;
   if (sourceRect) {
     ctx.drawImage(sprite.image, ...sourceRect, x, y, width, height);

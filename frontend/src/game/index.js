@@ -113,14 +113,16 @@ export const POWERUP_TYPES = {
 // Cấu hình hình ảnh (Sprites) và kích thước vật phẩm (Có thể tùy chỉnh hoặc thay thế file ảnh tại đây)
 export const POWERUP_CONFIG = {
   rocket: {
-    src: '/images/powerups/rocket.svg',
-    width: 24,
-    height: 32,
+    src: '/images/powerups/rocket.png',
+    width: 19,
+    height: 42,
+    sourceRect: [358, 35, 540, 1200],
   },
   shield: {
-    src: '/images/powerups/shield.svg',
-    width: 26,
-    height: 26,
+    src: '/images/powerups/shield.png',
+    width: 28,
+    height: 36,
+    sourceRect: [198, 77, 858, 1092],
   },
 };
 

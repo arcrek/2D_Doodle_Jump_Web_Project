@@ -85,7 +85,9 @@ const RESTART_WARMUP_MS = 550;
 const RETURN_DURATION_MS = 2400;
 
 // Thời gian hiệu ứng rèm gạt Wipe quét qua toàn màn hình khi bấm Chơi Lại (650ms)
-const WIPE_DURATION_MS = 650;
+const WIPE_DURATION_MS = 900;
+const LAVA_EXIT_DURATION_MS = 650;
+const LAVA_EXIT_CLEARANCE = 180;
 
 // Vận tốc nảy nhẹ trong nhịp nhún chờ (khởi động không nhảy quá cao: -340 px/s)
 const WARMUP_HOP_VY = -340;
@@ -214,6 +216,7 @@ export function createGame(canvas, config, {
   let nextBotIndex = enableIntro ? 0 : BOT_JOIN_TIMES_MS.length; // Chỉ số của Bot tiếp theo sẽ vào sân (0..3)
   let warmupStartTime = null;        // Mốc thời gian bắt đầu nhún nhảy nhẹ khởi động
   let returnStartTime = null;        // Mốc thời gian bắt đầu trượt ngược lên trời
+  let returnLavaFromScreenY = null;
   let returnFromY = 0;               // Tọa độ camera lúc bấm quay về tiêu đề
 
   // ===========================================================================
@@ -313,8 +316,17 @@ export function createGame(canvas, config, {
    * [TRỌNG TÂM] Kích hoạt Camera trượt từ bầu trời xuống mặt đất (Slide Down)
    * Được gọi khi người chơi bấm nút "START" hoặc ấn Space/Enter ở màn hình đầu tiên.
    */
+  function clearReturnState() {
+    returnStartTime = null;
+    returnLavaFromScreenY = null;
+    delete state.ui.returnTitleWorldY;
+    delete state.ui.returnDrawingTime;
+  }
+
+
   function startSlideDown() {
     if (phase !== 'intro_title') return;
+    clearReturnState();
 
     // 1. Tạo danh sách bệ đỡ cho cả chặng đường và rải bệ mây dọc bầu trời
     state.world = createWorld({ forIntro: true });
@@ -414,10 +426,10 @@ export function createGame(canvas, config, {
    */
   function triggerRestartWipe() {
     if (phase === 'wipe_reset') return;
+    clearReturnState();
     setPhase('wipe_reset');
     wipeStartTime = null;
     wipeResetTriggered = false;
-    if (state.world) state.world.lava = createLavaState();
     sound.playWipe();
   }
 
@@ -427,8 +439,12 @@ export function createGame(canvas, config, {
   function returnToTitleMenu() {
     if (phase === 'returning_title' || phase === 'intro_title') return;
     soundManager.stopBGM();
-    if (state.world) state.world.lava = createLavaState();
     returnFromY = state.world.cameraY;
+    const lavaExitY = canvas.height + LAVA_EXIT_CLEARANCE;
+    returnLavaFromScreenY = state.world.lava
+      ? Math.max(-LAVA_EXIT_CLEARANCE, Math.min(lavaExitY, state.world.lava.y - returnFromY))
+      : null;
+    state.player.powerup = createPowerupState();
     // Anchor the title above this frozen scene so it enters with the returning camera.
     state.ui.returnTitleWorldY = returnFromY + (state.ui.titleWorldY ?? TITLE_WORLD_Y);
     // Keep the visible scene frozen, discard scenery that would enter during the return.
@@ -661,13 +677,27 @@ export function createGame(canvas, config, {
       // Nội suy tọa độ camera từ vị trí hiện tại về Y_INTRO (-2400)
       state.world.cameraY = returnFromY + Y_INTRO * easeInOutCubic(progress);
 
+      // Lava exits in screen space independently of the returning camera.
+      // Its old world coordinate must never survive the final camera reset.
+      if (state.world.lava && returnLavaFromScreenY !== null) {
+        const lavaProgress = Math.min((time - returnStartTime) / (reduceMotion ? 100 : LAVA_EXIT_DURATION_MS), 1);
+        const lavaExitY = canvas.height + LAVA_EXIT_CLEARANCE;
+        state.world.lava.y = state.world.cameraY + returnLavaFromScreenY
+          + (lavaExitY - returnLavaFromScreenY) * easeInOutCubic(lavaProgress);
+        if (lavaProgress >= 1) delete state.world.lava;
+      }
+
       // Khi đã bay lên tới đỉnh trời: dọn dẹp sạch tài nguyên ván cũ
       if (progress >= 1) {
+        delete state.world.lava;
+        clearReturnState();
         state.world.cameraY = Y_INTRO;
         state.world.platforms = [];
-        if (state.world) state.world.lava = createLavaState();
         state.ui.platformReveal = 0;
         state.ui.revealProgress = 0;
+        state.ui.revealRanks = [];
+        state.ui.playerEntranceProgress = 0;
+        state.ui.wipeProgress = 0;
         state.ui.motionBlurPx = 0;
         state.player.x = 300;
         state.player.y = 388;
@@ -848,13 +878,17 @@ export function createGame(canvas, config, {
     else if (phase === 'wipe_reset') {
       if (wipeStartTime === null) wipeStartTime = time;
       const wipeElapsed = time - wipeStartTime;
-      const progress = Math.min(Math.max(wipeElapsed / (reduceMotion ? 100 : WIPE_DURATION_MS), 0), 1);
-      state.ui.wipeProgress = progress;
+      const wipeDuration = reduceMotion ? 100 : WIPE_DURATION_MS;
+      let progress = Math.min(Math.max(wipeElapsed / wipeDuration, 0), 1);
 
       // Khi rèm đóng kín hoàn toàn ở giữa nhịp (progress >= 0.5):
       // Âm thầm reset sạch dữ liệu thế giới game đằng sau bức rèm
       if (progress >= 0.5 && !wipeResetTriggered) {
         wipeResetTriggered = true;
+        // A dropped frame may skip the covered interval. Always present one
+        // fully closed page with the new world, then time the opening from it.
+        progress = 0.5;
+        wipeStartTime = time - wipeDuration * 0.5;
         state.world.cameraY = 0;
         state.world = createWorld({ soloStart: true });
         state.world.lava = createLavaState();
@@ -872,6 +906,7 @@ export function createGame(canvas, config, {
         isGameOver = false;
         publishStats(time);
       }
+      state.ui.wipeProgress = progress;
 
       // Khi rèm mở ra hoàn toàn -> chuyển sang nhún nhẹ khởi động
       if (progress >= 1) {

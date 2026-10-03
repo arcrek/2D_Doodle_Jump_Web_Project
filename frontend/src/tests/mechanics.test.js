@@ -73,7 +73,7 @@ describe('Mechanics: Rising Lava', () => {
     expect(player.vy).toBe(SHIELD_LAVA_REBOUND_VELOCITY); // Bật nảy
   });
 
-  it('Dung nham tiêu diệt Bot khi chạm phải', () => {
+  it('Dung nham tiêu diệt bot khi chạm phải', () => {
     const lava = { y: 400, speed: 40, elapsed: 0 };
     const bot = { y: 380, height: 44, isDead: false };
     updateLava({ lava, dt: 0.1, world: { platforms: [] }, player: { y: 0, height: 42 }, bots: [bot] });
@@ -294,16 +294,16 @@ describe('SoundManager', () => {
 describe('Mechanics: Powerup Config & Customizable Assets', () => {
   it('POWERUP_CONFIG cung cấp đường dẫn ảnh và kích thước có thể tùy biến', () => {
     const { POWERUP_CONFIG } = require('../game/index.js');
-    expect(POWERUP_CONFIG.rocket.src).toBe('/images/powerups/rocket.svg');
-    expect(POWERUP_CONFIG.shield.src).toBe('/images/powerups/shield.svg');
+    expect(POWERUP_CONFIG.rocket.src).toBe('/images/powerups/rocket.png');
+    expect(POWERUP_CONFIG.shield.src).toBe('/images/powerups/shield.png');
     expect(POWERUP_CONFIG.rocket.width).toBeGreaterThan(0);
     expect(POWERUP_CONFIG.shield.width).toBeGreaterThan(0);
   });
 
   it('POWERUP_PATHS trong sprites.js liên kết với đúng asset powerups', () => {
     const { POWERUP_PATHS } = require('../game/sprites.js');
-    expect(POWERUP_PATHS.rocket).toBe('/images/powerups/rocket.svg');
-    expect(POWERUP_PATHS.shield).toBe('/images/powerups/shield.svg');
+    expect(POWERUP_PATHS.rocket).toBe('/images/powerups/rocket.png');
+    expect(POWERUP_PATHS.shield).toBe('/images/powerups/shield.png');
   });
 
   it('renderPowerups vẽ an toàn khi có bệ chứa rocket và shield', () => {
@@ -311,7 +311,7 @@ describe('Mechanics: Powerup Config & Customizable Assets', () => {
     const ctx = {
       save: vi.fn(),
       restore: vi.fn(),
-      translate: vi.fn(),
+      translate: vi.fn(), rotate: vi.fn(),
       beginPath: vi.fn(),
       moveTo: vi.fn(),
       lineTo: vi.fn(),
@@ -349,8 +349,8 @@ describe('Mechanics: Lava Distance Warning', () => {
     game.destroy();
   });
 
-  it('renderLava hiển thị cảnh báo khi khoảng cách dung nham < 250m mà không crash', () => {
-    const { renderLava } = require('../game/mechanics.js');
+  it('dải DANGER di chuyển cùng lava thay cho badge khoảng cách', () => {
+    const { renderLavaDanger } = require('../game/mechanics.js');
     const ctx = {
       save: vi.fn(),
       restore: vi.fn(),
@@ -362,12 +362,19 @@ describe('Mechanics: Lava Distance Warning', () => {
       stroke: vi.fn(),
       fillText: vi.fn(),
       rect: vi.fn(),
+      clip: vi.fn(),
       createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     };
     const lava = { y: 350 };
-    const player = { y: 200, height: 42 }; // distance = 350 - 242 = 108m (< 250m)
-    expect(() => renderLava(ctx, lava, 0, 960, 540, 1.0, player)).not.toThrow();
-    expect(ctx.fillText).toHaveBeenCalledWith(expect.stringContaining('108m'), expect.any(Number), expect.any(Number));
+    expect(() => renderLavaDanger(ctx, lava, 0, 960, 540, 1.0)).not.toThrow();
+    const initial = ctx.fillText.mock.calls[0];
+    expect(initial[0]).toBe('DANGER');
+    ctx.fillText.mockClear();
+    renderLavaDanger(ctx, { y: 250 }, 0, 960, 540, 1.0);
+    expect(ctx.fillText.mock.calls[0][2]).toBeCloseTo(initial[2] - 100);
+    ctx.fillText.mockClear();
+    renderLavaDanger(ctx, { y: 1000 }, 0, 960, 540, 1.0);
+    expect(ctx.fillText).not.toHaveBeenCalled();
   });
 });
 

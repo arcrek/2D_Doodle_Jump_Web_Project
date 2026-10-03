@@ -12,6 +12,7 @@
 // 6. drawDoodleWipe: Vẽ hiệu ứng rèm gạt màn hình màu xanh lá có viền răng cưa khi chơi lại.
 // =============================================================================
 
+import { drawTitleLogo } from './title-logo.js';
 import { t } from '../i18n/index.js';
 
 /**
@@ -182,10 +183,11 @@ function charcoalStroke(ctx, points, drawing, strength = 1) {
 }
 
 export function drawDoodleTitle(ctx, centerX, centerY, timeSec = 0) {
+  if (drawTitleLogo(ctx, centerX, centerY, timeSec)) return;
   ctx.save();
 
-  // Hiệu ứng bồng bềnh: Chữ nhấp nhô nhẹ theo hàm Sin (biên độ 4px, chu kỳ 2.5 rad/s)
-  const floatY = Math.sin(timeSec * 2.5) * 4;
+  // Chữ dự phòng cũng giữ từng nhịp, đồng bộ với cache stop motion.
+  const floatY = Math.sin(Math.floor(timeSec * 7.5) / 7.5 * 2.5) * 2;
   const y = centerY + floatY;
 
   ctx.textAlign = 'center';
@@ -193,21 +195,8 @@ export function drawDoodleTitle(ctx, centerX, centerY, timeSec = 0) {
 
   // --- PHẦN 1: Dòng chữ phụ phiên bản trường USTH ---
   ctx.font = 'bold 14px "Patrick Hand", "Comic Sans MS", cursive, sans-serif';
-  ctx.fillStyle = '#2d5a43'; // Màu xanh rêu đậm
-  ctx.fillText(t('game.usth_edition'), centerX, y - 54);
-
-  // --- PHẦN 2: Chi tiết trang trí nét vẽ vui nhộn hai bên ---
-  ctx.strokeStyle = '#e67e22'; // Màu cam
-  ctx.lineWidth = 2;
-  // Vòng xoắn lò xo bên trái
-  ctx.beginPath();
-  ctx.arc(centerX - 180, y, 14, 0, Math.PI * 1.8);
-  ctx.stroke();
-  // Ngôi sao / chấm tròn màu vàng bên phải
-  ctx.fillStyle = '#f1c40f';
-  ctx.beginPath();
-  ctx.arc(centerX + 180, y - 8, 6, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillStyle = '#30302d';
+  ctx.fillText('★ USTH WEB PROJECT ★', centerX, y - 54);
 
   // --- PHẦN 3: Bóng đổ bút chì của tiêu đề chính (Shadow) ---
   // Lệch góc (+3px, +3px), dùng màu be sẫm (#d3c9b7) để tạo cảm giác nét than chì chìm
@@ -216,7 +205,7 @@ export function drawDoodleTitle(ctx, centerX, centerY, timeSec = 0) {
   ctx.fillText('DOODLE JUMP', centerX + 3, y + 3);
 
   // --- PHẦN 4: Thân chữ chính "DOODLE JUMP" ---
-  ctx.fillStyle = '#224a37'; // Màu xanh lá rừng đặc trưng phong cách Doodle
+  ctx.fillStyle = '#30302d';
   ctx.fillText('DOODLE JUMP', centerX, y);
 
   // --- PHẦN 5: Nét chì than, giữ từng hình vẽ như stop motion ---
@@ -463,26 +452,58 @@ export function drawDoodleCharacter(ctx, char, cameraY, timeSec = 0, isPlayer = 
  */
 export function drawDoodleWipe(ctx, progress, canvasWidth, canvasHeight) {
   if (progress <= 0 || progress >= 1) return;
-
+  const ease = t => t * t * (3 - 2 * t);
+  const sheetWidth = canvasWidth + 96;
+  const left = progress < .44
+    ? -sheetWidth + (sheetWidth - 48) * ease(progress / .44)
+    : progress > .56
+      ? -48 + (canvasWidth + 96) * ease((progress - .56) / .44)
+      : -48;
+  const right = left + sheetWidth;
+  const edgeX = y => right + Math.sin(y * .17) * 3 + Math.sin(y * .047) * 2;
   ctx.save();
-  // Tính độ bao phủ của bức màn: 0 -> 0.5 màn hình đóng kín, 0.5 -> 1.0 màn hình rút lui
-  const coverage = progress <= 0.5 ? progress * 2 : (1 - progress) * 2;
-  const wipeX = canvasWidth * coverage;
-
-  // Vẽ khối rèm màu xanh rừng đậm (#0f241a)
-  ctx.fillStyle = '#0f241a';
-  ctx.fillRect(0, 0, wipeX, canvasHeight);
-
-  // Mép rèm răng cưa vẽ bằng nét chì màu xanh sáng (#22c55e)
-  ctx.strokeStyle = '#22c55e';
-  ctx.lineWidth = 4;
+  // Narrow warm shadow along the moving page edge, no opaque dark curtain.
+  ctx.fillStyle = 'rgba(94,73,43,.12)';
+  ctx.fillRect(left - 9, 0, sheetWidth + 18, canvasHeight);
   ctx.beginPath();
-  for (let y = 0; y <= canvasHeight; y += 10) {
-    const jitterX = wipeX + (Math.sin(y * 0.1) * 8) + ((y % 20 === 0) ? 6 : -6);
-    if (y === 0) ctx.moveTo(jitterX, y);
-    else ctx.lineTo(jitterX, y);
+  ctx.moveTo(left, -8);
+  ctx.lineTo(edgeX(-8), -8);
+  for (let y = 0; y <= canvasHeight + 12; y += 8) ctx.lineTo(edgeX(y), y);
+  ctx.lineTo(left, canvasHeight + 12);
+  ctx.closePath();
+  ctx.fillStyle = '#faf4e8';
+  ctx.fill();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(127,151,161,.18)';
+  ctx.lineWidth = .7;
+  ctx.beginPath();
+  for (let y = 0; y <= canvasHeight; y += 22) { ctx.moveTo(left, y); ctx.lineTo(right + 8, y); }
+  for (let x = left; x < right; x += 22) { ctx.moveTo(x, 0); ctx.lineTo(x, canvasHeight); }
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(177,88,70,.35)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(left + 98, 0); ctx.lineTo(left + 98, canvasHeight); ctx.stroke();
+  // A few graphite hatch marks give the page edge a drawn, tactile finish.
+  ctx.strokeStyle = '#807363';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let y = 0; y < canvasHeight; y += 7) {
+    ctx.moveTo(edgeX(y) - 6, y); ctx.lineTo(edgeX(y) - 14, y + 5);
   }
   ctx.stroke();
-
+  ctx.strokeStyle = '#655d50';
+  ctx.beginPath(); ctx.moveTo(edgeX(0) - 1, 0);
+  for (let y = 8; y <= canvasHeight + 8; y += 8) ctx.lineTo(edgeX(y) - 1, y);
+  ctx.stroke();
+  const centerX = left + sheetWidth / 2;
+  ctx.fillStyle = '#554c3e';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '32px "Doodle Hand", "Comic Sans MS", cursive';
+  ctx.fillText(t('canvas.new_page'), centerX, canvasHeight / 2 - 7);
+  ctx.strokeStyle = '#a2844b';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(centerX - 97, canvasHeight / 2 + 22);
+  ctx.quadraticCurveTo(centerX + 8, canvasHeight / 2 + 17, centerX + 103, canvasHeight / 2 + 23);
+  ctx.stroke();
   ctx.restore();
 }

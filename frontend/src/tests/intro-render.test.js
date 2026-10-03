@@ -65,7 +65,7 @@ it('phase-gates lava rendering so lava and warning badges are suppressed outside
   render(ctx, readyState);
   expect(ctx.createLinearGradient).not.toHaveBeenCalled();
   const readyTexts = ctx.fillText.mock.calls.map(c => c[0]);
-  expect(readyTexts.some(t => typeof t === 'string' && /LAVA|DUNG NHAM/i.test(t))).toBe(false);
+  expect(readyTexts.some(t => typeof t === 'string' && /DANGER/i.test(t))).toBe(false);
 
   // Phase 'intro_title': không được vẽ dung nham
   const introState = { ...readyState, phase: 'intro_title' };
@@ -77,7 +77,7 @@ it('phase-gates lava rendering so lava and warning badges are suppressed outside
   render(ctx, runningState);
   expect(ctx.createLinearGradient).toHaveBeenCalled();
   const runningTexts = ctx.fillText.mock.calls.map(c => c[0]);
-  expect(runningTexts.some(t => typeof t === 'string' && /LAVA|DUNG NHAM/i.test(t))).toBe(true);
+  expect(runningTexts.some(t => typeof t === 'string' && /DANGER/i.test(t))).toBe(true);
 });
 
 it('phase-gates powerups rendering so powerups are suppressed outside gameplay', () => {

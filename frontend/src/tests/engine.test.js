@@ -246,11 +246,11 @@ it('wipe che kín trước khi thay thế thế giới và chỉ mở game sau k
   tick(100);
   tick(390);
   expect(game.getState().world).toBe(oldWorld);
-  tick(430);
+  tick(550);
   expect(game.getState().world).not.toBe(oldWorld);
   expect(game.getState().bots).toHaveLength(0);
   expect(game.getPhase()).toBe('wipe_reset');
-  tick(760);
+  tick(1010);
   expect(game.getPhase()).toBe('warmup_hop');
   game.destroy();
 });
@@ -306,15 +306,15 @@ it('bot vào ở giây 8/16/24/32 của lượt chơi, pause không tính giờ'
   expect(game.getState().bots.map(bot => bot.name)).toEqual(['Thầy Sơn', 'Thầy Việt', 'Thầy Hiệp', 'Thầy Nam']);
   game.triggerRestartWipe();
   tick(53000);
-  tick(53330);
+  tick(53450);
   expect(game.getState().bots).toHaveLength(0);
-  tick(53650);
-  tick(54200);
-  tick(54750);
+  tick(53900);
+  tick(54450);
+  tick(55000);
   expect(game.getPhase()).toBe('running');
-  tick(62749);
+  tick(62999);
   expect(game.getState().bots).toHaveLength(0);
-  tick(62751);
+  tick(63001);
   expect(game.getState().bots.map(bot => bot.name)).toEqual(['Thầy Sơn']);
   game.destroy();
 });
@@ -343,7 +343,7 @@ it('chế độ endless không bị giới hạn thời gian 180s và ghi nhận
   game.destroy();
 });
 
-it('engine resets lava state on triggerRestartWipe and returnToTitleMenu', () => {
+it('engine preserves visible lava until replay coverage or animated menu exit', () => {
   const game = createGame(canvas, { isEndless: true }, { enableIntro: true });
   tick(0);
   const state = game.getState();
@@ -355,7 +355,7 @@ it('engine resets lava state on triggerRestartWipe and returnToTitleMenu', () =>
 
   // Kích hoạt restart wipe
   game.triggerRestartWipe();
-  expect(state.world.lava.y).toBe(LAVA_INITIAL_Y);
+  expect(state.world.lava.y).toBe(-1000);
 
   // Giả lập tiếp tục dâng cao
   state.world.lava.y = -2000;
@@ -363,7 +363,7 @@ it('engine resets lava state on triggerRestartWipe and returnToTitleMenu', () =>
 
   // Kích hoạt về menu
   game.returnToTitleMenu();
-  expect(state.world.lava.y).toBe(LAVA_INITIAL_Y);
+  expect(state.world.lava.y).toBe(-2000);
 
   game.destroy();
 });
@@ -382,7 +382,7 @@ it('engine cleans up lava state when returning_title completes', () => {
   tick(100);
   tick(2600);
   expect(game.getPhase()).toBe('intro_title');
-  expect(state.world.lava.y).toBe(LAVA_INITIAL_Y);
+  expect(state.world.lava).toBeUndefined();
 
   game.destroy();
 });
