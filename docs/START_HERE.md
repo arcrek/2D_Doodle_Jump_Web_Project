@@ -45,6 +45,60 @@ Mở **http://localhost:5173**. Đạt khi:
 
 Chọn nickname và skin rồi bấm bắt đầu. Điều khiển bằng A/D hoặc phím mũi tên; trên thiết bị cảm ứng dùng hai nút ở cạnh dưới. Không đóng terminal khi đang xem.
 
+## 3b. Chạy bằng Docker (tùy chọn)
+
+Nếu đã cài **Docker Engine** hoặc **Docker Desktop** kèm Docker Compose, chạy tại thư mục gốc:
+
+```powershell
+docker compose up --build -d
+```
+
+Mở **http://localhost:8080**. Xem log bằng:
+
+```powershell
+docker compose logs -f
+```
+
+Khi stack đang chạy, kiểm tra nhanh bằng thư viện chuẩn của Python (không cần cài `pip` trên máy host):
+
+```powershell
+python scripts/check-docker.py
+```
+
+Trên Windows có thể dùng:
+
+```powershell
+py -3.12 scripts/check-docker.py
+```
+
+Lệnh này kiểm tra giao diện, API và WebSocket rồi tạo một lượt chơi thử. Ghi lại `run_id=UUID` trong kết quả. Sau `docker compose down` rồi chạy lại stack, dùng UUID đó để kiểm tra dữ liệu còn được giữ:
+
+```powershell
+python scripts/check-docker.py --run-id UUID
+```
+
+Trên Windows:
+
+```powershell
+py -3.12 scripts/check-docker.py --run-id UUID
+```
+
+Dừng các container bằng:
+
+```powershell
+docker compose down
+```
+
+Lệnh này vẫn giữ volume có tên `game-data`, nên dữ liệu SQLite được giữ lại. Muốn xóa cả dữ liệu đã lưu, dùng:
+
+```powershell
+docker compose down -v
+```
+
+SQLite của Docker là CSDL mới trong volume `game-data`, được gắn vào `backend/instance`. CSDL chỉ được khởi tạo khi chưa có; CSDL trên máy host không được nhập vào volume này. Giữ backend ở **một worker/replica** vì các phòng chơi nằm trong bộ nhớ; khi backend khởi động lại, các phòng đang mở sẽ reset.
+
+Sau khi sửa source, chạy lại `docker compose up --build -d` để build image mới. Docker không có hot reload.
+
 ## 4. Thử sửa một dòng để hiểu luồng
 
 Mở `frontend/src/pages/GamePage.jsx`, đổi tiêu đề “Doodle Jump” thành “Doodle Jump của [tên mình]”.
