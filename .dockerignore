@@ -1,0 +1,36 @@
+# Only application source and build inputs enter the build context.
+**
+!frontend/
+!frontend/src/
+!frontend/src/**
+!frontend/public/
+!frontend/public/**
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/vite.config.js
+!frontend/Dockerfile
+!frontend/nginx.conf
+!scripts/
+!scripts/check-game-assets.mjs
+!backend/
+!backend/*.py
+!backend/routes/
+!backend/routes/*.py
+!backend/events/
+!backend/events/*.py
+!backend/schema.sql
+!backend/requirements.txt
+!backend/Dockerfile
+!backend/docker-entrypoint.sh
+# Exclusions also apply below allowed directories.
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/[.]env*
+**/*.db
+**/*.sqlite*
+**/*.log
+backend/instance
+backend/tests
