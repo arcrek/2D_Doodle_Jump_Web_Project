@@ -1,6 +1,6 @@
 ---
 title: Consolidated doodle game, teacher intros and personal history
-status: validated
+status: completed
 branch: codex/doodle-assets-polish
 base: f63b561
 previous_pr: https://github.com/haohan233-tvinh/2D_Doodle_Jump_Web_Project/pull/51 (merged by user)
@@ -13,7 +13,7 @@ Constraints: preserve VI/EN/FR translations and current remote gameplay fixes; i
 - [x] Replace rocket/shield sprites; make hollow aura and downward exhaust use held doodle poses.
 - [x] Port scoped changes onto current origin/dev without overwriting translations.
 - [x] Run full tests/build and visual checks against delivery checkout.
-- [ ] Commit the consolidated changes, sync the user-merged main, push dev and open a new dev-to-main PR.
+- [x] Commit consolidated changes (d02989d), sync the user-merged main (3eb409e), push dev and open new PR #52.
 
 Image processing: built-in imagegen edit mode, one request per supplied image. Original source files remain unchanged. Project runtime PNGs: frontend/public/images/powerups/{rocket,shield,shield-aura,jet-flame}.png.
 Prompts: remove exterior white background while preserving red/white rocket or cyan shield and opaque white interior details; extract only narrow outer cyan aura contours/stars with transparent center and no character; remove white from downward orange/yellow exhaust and retain crayon grain. No added text/shadows/objects. Runtime crop rectangles avoid unused canvas margins.
@@ -21,3 +21,5 @@ Prompts: remove exterior white background while preserving red/white rocket or c
 Prior local verification: 226 frontend tests/build passed for initial logo/lava/history/restart work. Current powerup targeted suite: 33 existing mechanics/scene tests plus 3 new held-frame/expiry/hollow-fallback tests passed. Delivery checkout requires separate verification.
 
 Consolidated verification: 254 frontend tests across 24 files passed; 77 backend tests passed; production build and integrity check for all 8 portrait derivatives passed. No conflict markers or whitespace errors. Current browser QA could not be repeated because the in-app tab remains an internal error page and browser policy blocks controlling that state; no alternate surface used to bypass it. Prior asset visual checks are retained, but they do not verify this final consolidated checkout.
+
+Current PR: https://github.com/haohan233-tvinh/2D_Doodle_Jump_Web_Project/pull/52 (dev to main; left open).
